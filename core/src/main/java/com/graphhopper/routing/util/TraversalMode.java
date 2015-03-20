@@ -92,6 +92,19 @@ public enum TraversalMode
         return iterState.getAdjNode();
     }
 
+    public final int createTraversalId(int adjNode, int baseNode, int edge, boolean reverse )
+    {
+        if (edgeBased)
+        {
+            if (noOfStates == 1)
+                return edge;
+
+            return GHUtility.createEdgeKey(adjNode, baseNode, edge, reverse);
+        }
+
+        return adjNode;
+    }
+
     public int getNoOfStates()
     {
         return noOfStates;

@@ -25,13 +25,7 @@ import com.graphhopper.routing.util.LevelEdgeFilter;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.routing.util.Weighting;
 import com.graphhopper.routing.util.*;
-import com.graphhopper.storage.DataAccess;
-import com.graphhopper.storage.DAType;
-import com.graphhopper.storage.GHDirectory;
-import com.graphhopper.storage.Graph;
-import com.graphhopper.storage.LevelGraph;
-import com.graphhopper.storage.LevelGraphStorage;
-import com.graphhopper.storage.NodeAccess;
+import com.graphhopper.storage.*;
 import com.graphhopper.util.*;
 import java.util.*;
 import org.slf4j.Logger;
@@ -70,7 +64,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     private final DataAccess originalEdges;
     private final Map<Shortcut, Shortcut> shortcuts = new HashMap<Shortcut, Shortcut>();
     private IgnoreNodeFilter ignoreNodeFilter;
-    private DijkstraOneToMany prepareAlgo;
+    //private DijkstraOneToMany prepareAlgo;
+    private DijkstraOneToManyTraversal prepareAlgo;
     private long counter;
     private int newShortcuts;
     private long dijkstraCount;
@@ -596,12 +591,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
                 dijkstraSW.start();
                 dijkstraCount++;
-                int endNode = prepareAlgo.findEndNode(u_fromNode, w_toNode);
+                //int endNode = prepareAlgo.findEE(u_fromNode, w_toNode);
+                EdgeEntry endEE = prepareAlgo.findEE(u_fromNode, w_toNode);
                 dijkstraSW.stop();
 
                 // compare end node as the limit could force dijkstra to finish earlier
-                if (endNode == w_toNode && prepareAlgo.getWeight(endNode) <= existingDirectWeight)
-                    // FOUND witness path, so do not add shortcut                
+                if (endEE.adjNode == w_toNode && endEE.weight <= existingDirectWeight)
+                    // FOUND witness path, so do not add shortcut
                     continue;
 
                 sch.foundShortcut(u_fromNode, w_toNode,
@@ -718,7 +714,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         //   but we need the additional oldPriorities array to keep the old value which is necessary for the update method
         sortedNodes = new GHTreeMapComposed();
         oldPriorities = new int[prepareGraph.getNodes()];
-        prepareAlgo = new DijkstraOneToMany(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
+        //prepareAlgo = new DijkstraOneToMany(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
+        prepareAlgo = new DijkstraOneToManyTraversal(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
         return this;
     }
 

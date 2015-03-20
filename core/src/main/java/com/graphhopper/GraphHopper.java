@@ -36,6 +36,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+import gnu.trove.procedure.TIntProcedure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +66,7 @@ public class GraphHopper implements GraphHopperAPI
     // for routing
     private double defaultWeightLimit = Double.MAX_VALUE;
     private boolean simplifyResponse = true;
-    private TraversalMode traversalMode = TraversalMode.NODE_BASED;
+    private TraversalMode traversalMode = TraversalMode.EDGE_BASED_2DIR;
     private String defaultVehicleStr;
     private RoutingAlgorithmFactory algoFactory;
     // for index

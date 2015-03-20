@@ -60,8 +60,8 @@ public class EdgeBasedRoutingAlgorithmTest
             { AlgorithmOptions.DIJKSTRA },
             { AlgorithmOptions.DIJKSTRA_BI },
             { AlgorithmOptions.ASTAR },
-            { AlgorithmOptions.ASTAR_BI }
-        // TODO { AlgorithmOptions.DIJKSTRA_ONE_TO_MANY }
+            { AlgorithmOptions.ASTAR_BI },
+            { AlgorithmOptions.DIJKSTRA_ONE_TO_MANY }
         });
     }
 

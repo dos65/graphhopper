@@ -49,7 +49,8 @@ public class RoutingAlgorithmFactorySimple implements RoutingAlgorithmFactory
             return aStarBi;
         } else if (AlgorithmOptions.DIJKSTRA_ONE_TO_MANY.equalsIgnoreCase(algoStr))
         {
-            return new DijkstraOneToMany(g, opts.getFlagEncoder(), opts.getWeighting(), opts.getTraversalMode());
+            //return new DijkstraOneToMany(g, opts.getFlagEncoder(), opts.getWeighting(), opts.getTraversalMode());
+            return new DijkstraOneToManyTraversal(g, opts.getFlagEncoder(), opts.getWeighting(), opts.getTraversalMode());
         } else if (AlgorithmOptions.ASTAR.equalsIgnoreCase(algoStr))
         {
             AStar aStar = new AStar(g, opts.getFlagEncoder(), opts.getWeighting(), opts.getTraversalMode());
