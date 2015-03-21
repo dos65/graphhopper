@@ -557,4 +557,46 @@ public class PrepareContractionHierarchiesTest
         assertEquals((BitUtil.BIG.toBitString(edgeId)),
                 BitUtil.BIG.toLastBitString(fromNode, 32) + BitUtil.BIG.toLastBitString(endNode, 32));
     }
+
+    private void initShortcutsGraph3(Graph g)
+    {
+        g.edge(0, 1, 1, true);
+        g.edge(0, 15, 1, true);
+        g.edge(0, 16, 1, true);
+        g.edge(0, 9, 1, true);
+        g.edge(9, 11, 1, true);
+        g.edge(11, 17, 1, true);
+        g.edge(17, 18, 1, true);
+        g.edge(18, 19, 1, true);
+
+        g.edge(1, 2, 1, true);
+        g.edge(1, 3, 1, true);
+
+        g.edge(2, 14, 1 , true);
+        g.edge(2, 6, 1, true);
+        g.edge(6, 12, 1, true);
+        g.edge(6, 13, 1, true);
+        g.edge(6, 7, 1, true);
+        g.edge(7, 5, 1, true);
+        g.edge(5, 3, 1, true);
+        g.edge(3, 4, 1, true);
+        g.edge(4, 5, 1, true);
+        g.edge(4, 8, 1, true);
+
+        g.edge(7, 8, 1, true);
+        g.edge(8, 10, 1, true);
+        g.edge(8, 9, 1, true);
+    }
+
+    @Test
+    public void testSchortcuts3()
+    {
+        LevelGraph g = createGraph();
+        initShortcutsGraph3(g);
+        int old = GHUtility.count(g.getAllEdges());
+
+        PrepareContractionHierarchies prepare = new PrepareContractionHierarchies(g, carEncoder, weighting, tMode);
+        prepare.doWork();
+        assertEquals(old + 6, GHUtility.count(g.getAllEdges()));
+    }
 }

@@ -11,6 +11,7 @@ import gnu.trove.list.array.TIntArrayList;
 import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.PriorityQueue;
+import java.util.StringTokenizer;
 
 public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 {
@@ -63,7 +64,6 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     public EdgeEntry findEE(int from, int to)
     {
         this.to = to;
-        clear();
 
         if(!changedNodes.isEmpty())
         {
@@ -99,7 +99,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
             while(iter.next())
             {
                 if(!accept(iter, currEdge.edge))
-                   continue;
+                    continue;
 
 
                 double tmpWeight = weighting.calcWeight(iter, false, currEdge.edge) + currEdge.weight;
@@ -107,7 +107,6 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
                     continue;
 
                 int traversalId = traversalMode.createTraversalId(iter, false);
-
                 EdgeEntry ee = weights.get(traversalId);
                 if(ee == null)
                 {
@@ -134,12 +133,17 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 
             }
 
-            if (heap.isEmpty() || visitedNodes >= limitVisitedNodes || currEdge.weight >= weightLimit)
+            if (heap.isEmpty() || visitedNodes >= limitVisitedNodes)
                 return NOT_FOUND_EE;
 
             currEdge = heap.peek();
+
             if(finished())
                 return currEdge;
+
+            if(currEdge.weight > weightLimit)
+                return NOT_FOUND_EE;
+
 
             heap.poll();
         }
@@ -179,6 +183,15 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     public String getMemoryUsageAsString()
     {
         return "NOT IMPLEMENTED";
+    }
+
+    public double getWeight(int node)
+    {
+        EdgeEntry ee = reachedNodes[node];
+        if(ee != null)
+            return ee.weight;
+
+        return Double.MAX_VALUE;
     }
     
     public void clear()

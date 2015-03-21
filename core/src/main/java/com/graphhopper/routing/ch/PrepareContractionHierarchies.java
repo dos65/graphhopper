@@ -591,7 +591,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
                 dijkstraSW.start();
                 dijkstraCount++;
-                //int endNode = prepareAlgo.findEE(u_fromNode, w_toNode);
                 EdgeEntry endEE = prepareAlgo.findEE(u_fromNode, w_toNode);
                 dijkstraSW.stop();
 
@@ -599,6 +598,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                 if (endEE.adjNode == w_toNode && endEE.weight <= existingDirectWeight)
                     // FOUND witness path, so do not add shortcut
                     continue;
+
 
                 sch.foundShortcut(u_fromNode, w_toNode,
                         existingDirectWeight, existingDistSum,
@@ -770,6 +770,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     public RoutingAlgorithm createAlgo( Graph graph, AlgorithmOptions opts )
     {
         AbstractBidirAlgo algo;
+        //TODO: algo doesn't work with edge-based
+        TraversalMode traversalMode = TraversalMode.NODE_BASED;
         if (AlgorithmOptions.ASTAR_BI.equals(opts.getAlgorithm()))
         {
             AStarBidirection astarBi = new AStarBidirection(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
