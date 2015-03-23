@@ -48,12 +48,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         if(!traversalMode.isEdgeBased())
             return graph.getNodes();
 
-        int edges;
-        //TODO: QueryGraph getAllEdges not implemented
-        if(graph instanceof  QueryGraph)
-            edges = graph.getNodes() * 2;
-        else
-            edges = graph.getAllEdges().getCount();
+        int edges = graph.getAllEdges().getCount();
         if (traversalMode.getNoOfStates() == 1)
             return edges;
         else
@@ -68,15 +63,12 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 
     public EdgeEntry findEE(int from, int to)
     {
-        if(graph.getNodes() < 2)
-            return NOT_FOUND_EE;
-
         this.to = to;
 
         if(!changedNodes.isEmpty())
         {
             EdgeEntry entry = reachedNodes[to];
-            if(entry != null && entry.weight <= currEdge.weight)
+            if(entry != null && entry.parent != null && entry.weight <= currEdge.weight)
                 return entry;
 
             if(heap.isEmpty() || visitedNodes >= limitVisitedNodes)
@@ -91,6 +83,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
             {
                 weights.set(from, currEdge);
                 reachedNodes[from] = currEdge;
+
                 changedNodes.add(from);
                 changedIds.add(from);
             }
@@ -109,7 +102,6 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
                 if(!accept(iter, currEdge.edge))
                     continue;
 
-
                 double tmpWeight = weighting.calcWeight(iter, false, currEdge.edge) + currEdge.weight;
                 if (Double.isInfinite(tmpWeight))
                     continue;
@@ -121,16 +113,16 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
                     ee = new EdgeEntry(iter.getEdge(), iter.getAdjNode(), tmpWeight);
                     ee.parent = currEdge;
                     weights.set(traversalId, ee);
-                    reachedNodes[iter.getAdjNode()] = ee;
                     heap.add(ee);
+                    updateReached(ee);
 
                     changedIds.add(traversalId);
-                    changedNodes.add(iter.getAdjNode());
                 } else if (ee.weight > tmpWeight)
                 {
+                    updateReached(ee);
+
                     heap.remove(ee);
                     ee.edge = iter.getEdge();
-                    ee.adjNode = iter.getAdjNode();
                     ee.weight = tmpWeight;
                     ee.parent = currEdge;
                     heap.add(ee);
@@ -141,27 +133,38 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 
             }
 
-            if (heap.isEmpty() || visitedNodes >= limitVisitedNodes)
+            if (heap.isEmpty() || visitedNodes >= limitVisitedNodes || isWeightLimitReached())
                 return NOT_FOUND_EE;
 
             currEdge = heap.peek();
-
             if(finished())
                 return currEdge;
-
-            if(currEdge.weight > weightLimit)
-                return NOT_FOUND_EE;
-
 
             heap.poll();
         }
 
     }
 
+    // Update reachedNodes for getting from cache by node
+    private void updateReached(EdgeEntry ee)
+    {
+        EdgeEntry previous = reachedNodes[ee.adjNode];
+        if(previous == null || previous.weight <= ee.weight)
+            return;
+
+        reachedNodes[ee.adjNode] = ee;
+        changedNodes.add(ee.adjNode);
+    }
+
     @Override
     protected boolean finished()
     {
         return currEdge.adjNode == to;
+    }
+
+    private boolean isWeightLimitReached()
+    {
+        return currEdge.weight > weightLimit;
     }
 
     @Override
@@ -193,15 +196,6 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         return "NOT IMPLEMENTED";
     }
 
-    public double getWeight(int node)
-    {
-        EdgeEntry ee = reachedNodes[node];
-        if(ee != null)
-            return ee.weight;
-
-        return Double.MAX_VALUE;
-    }
-    
     public void clear()
     {
         for(int i = 0; i < changedIds.size(); i++)
@@ -218,7 +212,8 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         changedIds.reset();
         heap.clear();
     }
-    
+
+    //TODO: maybe we should clear pointer "prepareAlgo" in PrepareContracionHierchies?
     public void close()
     {
         weights = null;

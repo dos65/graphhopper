@@ -113,8 +113,8 @@ public class DijkstraOneToMany extends AbstractRoutingAlgorithm
             return NOT_FOUND;
 
         this.to = to;
-        if (doClear)
-        {
+        /*if (doClear)
+        {*/
             doClear = false;
             int vn = changedNodes.size();
             for (int i = 0; i < vn; i++)
@@ -134,7 +134,7 @@ public class DijkstraOneToMany extends AbstractRoutingAlgorithm
                 weights[currNode] = 0;
                 changedNodes.add(currNode);
             }
-        } else
+        /*} else
         {
             // Cached! Re-use existing data structures
             int parentNode = parents[to];
@@ -145,7 +145,7 @@ public class DijkstraOneToMany extends AbstractRoutingAlgorithm
                 return NOT_FOUND;
 
             currNode = heap.poll_element();
-        }
+        }*/
 
         visitedNodes = 0;
         if (finished())
@@ -205,7 +205,7 @@ public class DijkstraOneToMany extends AbstractRoutingAlgorithm
 
     protected boolean isWeightLimitReached()
     {
-        return weights[currNode] >= weightLimit;
+        return weights[currNode] > weightLimit;
     }
 
     public void close()

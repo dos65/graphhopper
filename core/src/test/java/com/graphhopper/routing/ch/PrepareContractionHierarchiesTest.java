@@ -161,7 +161,6 @@ public class PrepareContractionHierarchiesTest
         LevelGraph g = createGraph();
         initDirected2(g);
         int old = GHUtility.count(g.getAllEdges());
-
         PrepareContractionHierarchies prepare = new PrepareContractionHierarchies(g, carEncoder, weighting, tMode);
         prepare.doWork();
         // PrepareTowerNodesShortcutsTest.printEdges(g);
@@ -597,6 +596,47 @@ public class PrepareContractionHierarchiesTest
 
         PrepareContractionHierarchies prepare = new PrepareContractionHierarchies(g, carEncoder, weighting, tMode);
         prepare.doWork();
-        assertEquals(old + 6, GHUtility.count(g.getAllEdges()));
+        assertEquals(old + 8, GHUtility.count(g.getAllEdges()));
+    }
+
+
+    public static LevelGraph initShortcutsGraph2( LevelGraph g)
+    {
+        //     0----1
+        //    /     |
+        //   7--    |
+        //  /   |   |
+        //  6---5   |
+        //  |   |   |
+        //  4---3---2
+        g.edge(0, 1, 1, true);
+        g.edge(1, 2, 1, true);
+        g.edge(3, 2, 1, true);
+        g.edge(3, 5, 1, true);
+        g.edge(5, 7, 1, true);
+        g.edge(3, 4, 1, true);
+        g.edge(4, 6, 1, true);
+        g.edge(6, 7, 1, true);
+        g.edge(6, 5, 1, true);
+        g.edge(0, 7, 1, true);
+        return g;
+    }
+    @Test
+    public void testLimitWeightBug()
+    {
+        LevelGraphStorage g = (LevelGraphStorage) createGraph();
+        initShortcutsGraph2(g);
+        DijkstraOneToManyTraversal prepareAlgo = new DijkstraOneToManyTraversal(g, carEncoder, weighting, tMode);
+        prepareAlgo.setEdgeFilter(new PrepareContractionHierarchies.IgnoreNodeFilter(g, g.getNodes() + 1).setAvoidNode(2));
+        PrepareContractionHierarchies prepare = new PrepareContractionHierarchies(g, carEncoder, weighting, tMode);
+        prepare.initFromGraph().prepareNodes();
+        prepareAlgo.setWeightLimit(3);
+        EdgeEntry ee = prepareAlgo.findEE(0, 4);
+        assertEquals(4, ee.adjNode);
+        assertEquals(3.0, ee.weight, 1e-6);
+        prepareAlgo.clear();
+        ee = prepareAlgo.findEE(0, 3);
+        assertEquals(3, ee.adjNode);
+        assertEquals(3.0, ee.weight, 1e-6);
     }
 }
