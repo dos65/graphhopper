@@ -64,8 +64,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     private final DataAccess originalEdges;
     private final Map<Shortcut, Shortcut> shortcuts = new HashMap<Shortcut, Shortcut>();
     private IgnoreNodeFilter ignoreNodeFilter;
-    //private DijkstraOneToMany prepareAlgo;
-    private DijkstraOneToManyTraversal prepareAlgo;
+    private DijkstraOneToMany prepareAlgo;
+    //private DijkstraOneToManyTraversal prepareAlgo;
     private long counter;
     private int newShortcuts;
     private long dijkstraCount;
@@ -462,6 +462,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             // and also in the graph for u->w. If existing AND identical weight => update setProperties.
             // Hint: shortcuts are always one-way due to distinct level of every node but we don't
             // know yet the levels so we need to determine the correct direction or if both directions
+            System.out.println("ADD:" + u_fromNode + " " + w_toNode);
             Shortcut sc = new Shortcut(u_fromNode, w_toNode, existingDirectWeight, existingDistSum);
             if (shortcuts.containsKey(sc))
                 return;
@@ -546,6 +547,9 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
      */
     void findShortcuts( ShortcutHandler sch )
     {
+        if(sch instanceof  AddShortcutHandler)
+            System.out.println("contract:" + sch.getNode());
+
         long tmpDegreeCounter = 0;
         EdgeIterator incomingEdges = vehicleInExplorer.setBaseNode(sch.getNode());
         // collect outgoing nodes (goal-nodes) only once
@@ -591,11 +595,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
                 dijkstraSW.start();
                 dijkstraCount++;
-                EdgeEntry endEE = prepareAlgo.findEE(u_fromNode, w_toNode);
+                //EdgeEntry endEE = prepareAlgo.findEE(u_fromNode, w_toNode);
+                int endNode = prepareAlgo.findEndNode(u_fromNode, w_toNode);
                 dijkstraSW.stop();
 
                 // compare end node as the limit could force dijkstra to finish earlier
-                if (endEE.adjNode == w_toNode && endEE.weight <= existingDirectWeight)
+                //if (endEE.adjNode == w_toNode && endEE.weight <= existingDirectWeight)
+                if (endNode == w_toNode && prepareAlgo.getWeight(endNode) <= existingDirectWeight)
                     // FOUND witness path, so do not add shortcut
                     continue;
 
@@ -714,8 +720,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         //   but we need the additional oldPriorities array to keep the old value which is necessary for the update method
         sortedNodes = new GHTreeMapComposed();
         oldPriorities = new int[prepareGraph.getNodes()];
-        //prepareAlgo = new DijkstraOneToMany(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
-        prepareAlgo = new DijkstraOneToManyTraversal(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
+        prepareAlgo = new DijkstraOneToMany(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
+        //prepareAlgo = new DijkstraOneToManyTraversal(prepareGraph, prepareFlagEncoder, prepareWeighting, traversalMode);
         return this;
     }
 
@@ -771,7 +777,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     {
         AbstractBidirAlgo algo;
         //TODO: algo doesn't work with edge-based
-        TraversalMode traversalMode = TraversalMode.NODE_BASED;
         if (AlgorithmOptions.ASTAR_BI.equals(opts.getAlgorithm()))
         {
             AStarBidirection astarBi = new AStarBidirection(graph, prepareFlagEncoder, prepareWeighting, traversalMode)

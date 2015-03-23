@@ -48,7 +48,12 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         if(!traversalMode.isEdgeBased())
             return graph.getNodes();
 
-        int edges = graph.getAllEdges().getCount();
+        int edges;
+        //TODO: QueryGraph getAllEdges not implemented
+        if(graph instanceof  QueryGraph)
+            edges = graph.getNodes() * 2;
+        else
+            edges = graph.getAllEdges().getCount();
         if (traversalMode.getNoOfStates() == 1)
             return edges;
         else
@@ -63,6 +68,9 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 
     public EdgeEntry findEE(int from, int to)
     {
+        if(graph.getNodes() < 2)
+            return NOT_FOUND_EE;
+
         this.to = to;
 
         if(!changedNodes.isEmpty())

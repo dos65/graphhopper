@@ -11,8 +11,8 @@ public class PrepareContractionHierarchiesEdgeBasedTest extends PrepareContracti
 
     @Test
     @Override
-    public void testSchortcuts3()
+    public void testDirectedGraph2()
     {
-        super.testSchortcuts3();
+        super.testDirectedGraph2();
     }
 }
