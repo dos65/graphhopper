@@ -590,7 +590,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
                 double existingDistSum = v_u_dist + outgoingEdges.getDistance();
                 prepareAlgo.setWeightLimit(existingDirectWeight);
-                //prepareAlgo.setLimitVisitedNodes((int) meanDegree * 100);
+                prepareAlgo.setLimitVisitedNodes((int) meanDegree * 100);
                 prepareAlgo.setEdgeFilter(ignoreNodeFilter.setAvoidNode(sch.getNode()));
 
                 dijkstraSW.start();

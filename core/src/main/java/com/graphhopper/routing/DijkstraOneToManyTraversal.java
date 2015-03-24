@@ -77,6 +77,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
             currEdge = heap.poll();
         } else
         {
+            this.clear();
             currEdge = createEdgeEntry(from, 0);
 
             if(!traversalMode.isEdgeBased())
@@ -164,7 +165,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 
     private boolean isWeightLimitReached()
     {
-        return currEdge.weight > weightLimit;
+        return currEdge.weight >= weightLimit;
     }
 
     @Override
