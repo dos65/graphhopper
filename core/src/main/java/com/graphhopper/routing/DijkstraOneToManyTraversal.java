@@ -1,5 +1,6 @@
 package com.graphhopper.routing;
 
+import com.graphhopper.coll.GHTreeMapComposed;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.routing.util.TraversalMode;
 import com.graphhopper.routing.util.Weighting;
@@ -10,17 +11,14 @@ import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.set.TIntSet;
 import gnu.trove.set.hash.TIntHashSet;
 
-import java.util.AbstractList;
-import java.util.Arrays;
-import java.util.PriorityQueue;
-import java.util.StringTokenizer;
+import java.util.*;
 
 public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 {
     public static final EdgeEntry NOT_FOUND_EE = new EdgeEntry(-1, -1, 0);
     private int limitVisitedNodes = Integer.MAX_VALUE;
 
-    private AutoResizableArray<EdgeEntry> weights;
+    private AutoVector<EdgeEntry> weights;
 
     private EdgeEntry[] reachedNodes;
     private PriorityQueue<EdgeEntry> heap;
@@ -29,17 +27,17 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     private final TIntArrayListWithCap changedNodes;
 
     private EdgeEntry currEdge;
-    //private int visitedNodes;
+
     private TIntSet visitedNodes;
     private int to;
+    private boolean doClear = true;
 
     public DijkstraOneToManyTraversal(Graph graph, FlagEncoder encoder, Weighting weighting, TraversalMode trMode)
     {
         super(graph, encoder, weighting, trMode);
 
         int capacity = matchCapacity();
-
-        weights = new AutoResizableArray<EdgeEntry>(capacity + 1);
+        weights = new AutoVector<EdgeEntry>(capacity + 1);
         heap = new PriorityQueue<EdgeEntry>(1000);
         reachedNodes = new EdgeEntry[graph.getNodes()];
         
@@ -71,7 +69,19 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     {
         this.to = to;
 
-        if(!changedNodes.isEmpty())
+        if(doClear)
+        {
+            lazyClear();
+
+            currEdge = createEdgeEntry(from, 0);
+
+            if(!traversalMode.isEdgeBased())
+            {
+                weights.set(from, currEdge);
+                changedIds.add(from);
+            }
+
+        } else
         {
             EdgeEntry entry = reachedNodes[to];
             if(entry != null && entry.parent != null && entry.weight <= currEdge.weight)
@@ -81,15 +91,6 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
                 return NOT_FOUND_EE;
 
             currEdge = heap.poll();
-        } else
-        {
-            currEdge = createEdgeEntry(from, 0);
-
-            if(!traversalMode.isEdgeBased())
-            {
-                weights.set(from, currEdge);
-                changedIds.add(from);
-            }
         }
 
         visitedNodes.clear();
@@ -203,6 +204,11 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
 
     public void clear()
     {
+        doClear = true;
+    }
+
+    private void lazyClear()
+    {
         for(int i = 0; i < changedIds.size(); i++)
         {
             int index = changedIds.get(i);
@@ -216,6 +222,8 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         changedNodes.reset();
         changedIds.reset();
         heap.clear();
+
+        doClear = false;
     }
 
     //TODO: maybe we should clear pointer "prepareAlgo" in PrepareContracionHierchies?
@@ -234,49 +242,34 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         }
     }
 
-    public static class AutoResizableArray<E> extends AbstractList<E>
+    private static class AutoVector<E> extends Vector<E>
     {
-        private Object[]  elements;
-        private int size;
-
-        public AutoResizableArray(int initialSize)
+        public AutoVector(int initialCapacity)
         {
-            size = initialSize;
-            elements = new Object[size];
+            super(initialCapacity);
+        }
+
+        public AutoVector(int initialCapacity, int capacityIncrement)
+        {
+            super(initialCapacity, capacityIncrement);
         }
 
         @Override
-        public E get(int index)
+        public synchronized E get(int index)
         {
-            if(index >= size)
-                return null;
-            return (E) elements[index];
+            if(index >= size())
+                setSize(index + 1);
+            return super.get(index);
         }
 
-        @Override
-        public int size()
-        {
-            return size;
-        }
 
         @Override
-        public E set(int index, E element)
+        public synchronized E set(int index, E element)
         {
-            if(index >= size)
-            {
-                size = index + 1;
-                elements = Arrays.copyOf(elements, size);
-            }
-
-            Object previous = elements[index];
-            elements[index] = element;
-            return previous == null ? null : (E) previous;
-        }
-
-        @Override
-        public boolean isEmpty()
-        {
-            throw new RuntimeException();
+            if(index >= size())
+                setSize(index + 1);
+            return super.set(index, element);
         }
     }
+
 }
