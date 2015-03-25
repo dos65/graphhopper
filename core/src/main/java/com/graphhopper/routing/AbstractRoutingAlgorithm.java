@@ -41,6 +41,9 @@ public abstract class AbstractRoutingAlgorithm implements RoutingAlgorithm
     protected double weightLimit = Double.MAX_VALUE;
     private boolean alreadyRun;
 
+    LevelEdgeFilter levelEdgeFilter;
+    boolean levelEdgeBasedFlag=false;
+
     /**
      * @param graph specifies the graph where this algorithm will run on
      * @param encoder sets the used vehicle (bike, car, foot)
@@ -67,6 +70,12 @@ public abstract class AbstractRoutingAlgorithm implements RoutingAlgorithm
     public RoutingAlgorithm setEdgeFilter( EdgeFilter additionalEdgeFilter )
     {
         this.additionalEdgeFilter = additionalEdgeFilter;
+        if(additionalEdgeFilter instanceof LevelEdgeFilter && traversalMode.isEdgeBased())
+        {
+            levelEdgeFilter = (LevelEdgeFilter)additionalEdgeFilter;
+            levelEdgeBasedFlag = true;
+        }
+
         return this;
     }
 
@@ -74,6 +83,9 @@ public abstract class AbstractRoutingAlgorithm implements RoutingAlgorithm
     {
         if (!traversalMode.hasUTurnSupport() && iter.getEdge() == prevOrNextEdgeId)
             return false;
+
+        if(levelEdgeBasedFlag)
+            return levelEdgeFilter.accept(iter, prevOrNextEdgeId);
 
         return additionalEdgeFilter == null || additionalEdgeFilter.accept(iter);
     }

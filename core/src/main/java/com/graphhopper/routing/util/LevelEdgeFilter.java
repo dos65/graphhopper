@@ -31,11 +31,13 @@ public class LevelEdgeFilter implements EdgeFilter
 {
     private final LevelGraph graph;
     private final int maxNodes;
+    private final int maxEdges;
 
     public LevelEdgeFilter( LevelGraph g )
     {
         graph = g;
         maxNodes = g.getNodes();
+        maxEdges = g.getAllEdges().getCount();
     }
 
     @Override
@@ -52,5 +54,19 @@ public class LevelEdgeFilter implements EdgeFilter
             return true;
 
         return graph.getLevel(base) <= graph.getLevel(adj);
+    }
+
+    public boolean accept( EdgeIteratorState edgeIterState, int prevOrNextEdge)
+    {
+        int edgeId = edgeIterState.getEdge();
+        System.out.println(maxEdges);
+        System.out.println(edgeId + " " + prevOrNextEdge);
+        if(edgeId >= maxEdges || prevOrNextEdge >= maxEdges || prevOrNextEdge < 0)
+            return true;
+
+        if (((EdgeSkipIterState) edgeIterState).isShortcut())
+            return true;
+
+        return graph.getEdgeLevel(prevOrNextEdge) == graph.getEdgeLevel(edgeId);
     }
 }

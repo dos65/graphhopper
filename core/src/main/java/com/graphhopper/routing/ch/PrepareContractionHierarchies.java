@@ -362,6 +362,19 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         // Preparation works only once so we can release temporary data.
         // The preparation object itself has to be intact to create the algorithm.
         close();
+
+        if(traversalMode.isEdgeBased())
+        {
+            AllEdgesSkipIterator iter = this.prepareGraph.getAllEdges();
+            while(iter.next())
+            {
+                int baseLevel = prepareGraph.getLevel(iter.getBaseNode());
+                int adjLevel = prepareGraph.getLevel(iter.getAdjNode());
+                prepareGraph.setEdgeLevel(iter.getEdge(), Math.max(baseLevel, adjLevel));
+            }
+
+        }
+
         logger.info("took:" + (int) allSW.stop().getSeconds()
                 + ", new shortcuts: " + newShortcuts
                 + ", " + prepareWeighting

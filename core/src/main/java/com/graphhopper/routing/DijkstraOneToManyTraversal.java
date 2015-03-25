@@ -19,6 +19,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     private int limitVisitedNodes = Integer.MAX_VALUE;
 
     private AutoResizableArray<EdgeEntry> weights;
+
     private EdgeEntry[] reachedNodes;
     private PriorityQueue<EdgeEntry> heap;
 
@@ -77,7 +78,6 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
             currEdge = heap.poll();
         } else
         {
-            this.clear();
             currEdge = createEdgeEntry(from, 0);
 
             if(!traversalMode.isEdgeBased())

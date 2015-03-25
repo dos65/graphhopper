@@ -39,6 +39,7 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
     private int I_SKIP_EDGE1;
     private int I_SKIP_EDGE2;
     private int I_LEVEL;
+    private int I_EDGE_LEVEL;
     // after the last edge only shortcuts are stored
     private int lastEdgeIndex = -1;
     private final long scDirMask = PrepareEncoder.getScDirMask();
@@ -62,6 +63,7 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
         super.initStorage();
         I_SKIP_EDGE1 = nextEdgeEntryIndex(4);
         I_SKIP_EDGE2 = nextEdgeEntryIndex(4);
+        I_EDGE_LEVEL = nextEdgeEntryIndex(4);
         I_LEVEL = nextNodeEntryIndex(4);
         initNodeAndEdgeEntrySize();
     }
@@ -76,6 +78,15 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
     }
 
     @Override
+    public void setEdgeLevel(int edgeId, int level)
+    {
+        if(edgeId > lastEdgeIndex)
+            return;
+
+        edges.setInt((long)edgeId * edgeEntryBytes + I_EDGE_LEVEL, level);
+    }
+
+    @Override
     public final int getLevel( int nodeIndex )
     {
         // automatically allocate new nodes only via creating edges or setting node properties
@@ -83,6 +94,15 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
             throw new IllegalStateException("node " + nodeIndex + " is invalid. Not in [0," + getNodes() + ")");
 
         return nodes.getInt((long) nodeIndex * nodeEntryBytes + I_LEVEL);
+    }
+
+    @Override
+    public int getEdgeLevel(int edgeId)
+    {
+        if(edgeId > lastEdgeIndex)
+            throw new IllegalStateException("edge " + edgeId + " is invalid. Not in [0," + lastEdgeIndex + "]");
+
+        return edges.getInt((long)edgeId * edgeEntryBytes + I_EDGE_LEVEL);
     }
 
     @Override
