@@ -370,6 +370,8 @@ public class PrepareContractionHierarchiesTest
         g.setLevel(2, 5);
         g.setLevel(1, 4);
         g.setLevel(10, 3);
+
+
     }
 
     @Test

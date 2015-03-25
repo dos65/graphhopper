@@ -35,16 +35,10 @@ public interface LevelGraph extends Graph
      */
     void setLevel( int nodeId, int level );
 
-    void setEdgeLevel( int edgeId, int level);
-
     /**
      * @return the level of the specified node.
      */
     int getLevel( int nodeId );
-
-    int getEdgeLevel( int edgeId);
-
-    //int getMaxEdgeIndex();
 
     boolean isShortcut( int edgeId );
 

@@ -7,6 +7,8 @@ import com.graphhopper.storage.EdgeEntry;
 import com.graphhopper.storage.Graph;
 import com.graphhopper.util.EdgeIterator;
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.set.TIntSet;
+import gnu.trove.set.hash.TIntHashSet;
 
 import java.util.AbstractList;
 import java.util.Arrays;
@@ -27,7 +29,8 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     private final TIntArrayListWithCap changedNodes;
 
     private EdgeEntry currEdge;
-    private int visitedNodes;
+    //private int visitedNodes;
+    private TIntSet visitedNodes;
     private int to;
 
     public DijkstraOneToManyTraversal(Graph graph, FlagEncoder encoder, Weighting weighting, TraversalMode trMode)
@@ -42,6 +45,8 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
         
         changedIds = new TIntArrayListWithCap();
         changedNodes = new TIntArrayListWithCap();
+
+        visitedNodes = new TIntHashSet();
     }
 
     private int matchCapacity()
@@ -72,7 +77,7 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
             if(entry != null && entry.parent != null && entry.weight <= currEdge.weight)
                 return entry;
 
-            if(heap.isEmpty() || visitedNodes >= limitVisitedNodes)
+            if(heap.isEmpty() || visitedNodes.size() >= limitVisitedNodes)
                 return NOT_FOUND_EE;
 
             currEdge = heap.poll();
@@ -83,20 +88,17 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
             if(!traversalMode.isEdgeBased())
             {
                 weights.set(from, currEdge);
-                reachedNodes[from] = currEdge;
-
-                changedNodes.add(from);
                 changedIds.add(from);
             }
         }
 
-        visitedNodes = 0;
+        visitedNodes.clear();
         if(finished())
             return currEdge;
 
         while(true)
         {
-            visitedNodes++;
+            visitedNodes.add(currEdge.adjNode);
             EdgeIterator iter = outEdgeExplorer.setBaseNode(currEdge.adjNode);
             while(iter.next())
             {
@@ -129,12 +131,11 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
                     heap.add(ee);
 
                     changedIds.add(traversalId);
-                    changedNodes.add(iter.getAdjNode());
                 }
 
             }
 
-            if (heap.isEmpty() || visitedNodes >= limitVisitedNodes || isWeightLimitReached())
+            if (heap.isEmpty() || visitedNodes.size() >= limitVisitedNodes || isWeightLimitReached())
                 return NOT_FOUND_EE;
 
             currEdge = heap.peek();
@@ -150,11 +151,15 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     private void updateReached(EdgeEntry ee)
     {
         EdgeEntry previous = reachedNodes[ee.adjNode];
-        if(previous == null || previous.weight <= ee.weight)
-            return;
+        if(previous == null)
+        {
+            reachedNodes[ee.adjNode] = ee;
+            changedNodes.add(ee.adjNode);
+        } else if(previous.weight > ee.weight)
+        {
+            reachedNodes[ee.adjNode] = ee;
+        }
 
-        reachedNodes[ee.adjNode] = ee;
-        changedNodes.add(ee.adjNode);
     }
 
     @Override
@@ -171,25 +176,24 @@ public class DijkstraOneToManyTraversal extends AbstractRoutingAlgorithm
     @Override
     protected Path extractPath()
     {
-        return null;
+        EdgeEntry ee = reachedNodes[to];
+        Path path = new Path(graph, flagEncoder);
+        if(ee != null)
+            path.setEdgeEntry(ee).setWeight(ee.weight).extract();
+        return path;
     }
 
     @Override
     public Path calcPath(int from, int to)
     {
-        EdgeEntry endEe = findEE(from, to);
-        Path path = new Path(graph, flagEncoder);
-        if(endEe != NOT_FOUND_EE)
-        {
-            path.setEdgeEntry(endEe).setWeight(endEe.weight).extract();
-        }
-        return path;
+        findEE(from, to);
+        return extractPath();
     }
 
     @Override
     public int getVisitedNodes()
     {
-        return visitedNodes;
+        return visitedNodes.size();
     }
 
     public String getMemoryUsageAsString()

@@ -28,6 +28,10 @@ import com.graphhopper.routing.util.*;
 import com.graphhopper.storage.*;
 import com.graphhopper.util.*;
 import java.util.*;
+
+import gnu.trove.map.TIntObjectMap;
+import gnu.trove.map.hash.TIntIntHashMap;
+import gnu.trove.map.hash.TIntObjectHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -362,18 +366,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         // Preparation works only once so we can release temporary data.
         // The preparation object itself has to be intact to create the algorithm.
         close();
-
-        if(traversalMode.isEdgeBased())
-        {
-            AllEdgesSkipIterator iter = this.prepareGraph.getAllEdges();
-            while(iter.next())
-            {
-                int baseLevel = prepareGraph.getLevel(iter.getBaseNode());
-                int adjLevel = prepareGraph.getLevel(iter.getAdjNode());
-                prepareGraph.setEdgeLevel(iter.getEdge(), Math.max(baseLevel, adjLevel));
-            }
-
-        }
 
         logger.info("took:" + (int) allSW.stop().getSeconds()
                 + ", new shortcuts: " + newShortcuts
@@ -841,11 +833,36 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         {
             algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
             {
+
+                private TIntObjectMap<Set<Integer>> node2TravFrom;
+                private TIntObjectMap<Set<Integer>> node2TravTo;
+                private int from, to;
+
                 @Override
                 protected void initCollections( int nodes )
                 {
                     // algorithm with CH does not need that much memory pre allocated
                     super.initCollections(Math.min(initialCollectionSize, nodes));
+
+                    if(traversalMode.isEdgeBased())
+                    {
+                        node2TravFrom = new TIntObjectHashMap<Set<Integer>>(Math.min(initialCollectionSize, nodes));
+                        node2TravTo = new TIntObjectHashMap<Set<Integer>>(Math.min(initialCollectionSize, nodes));
+                    }
+                }
+
+                @Override
+                public void initFrom(int from, double dist)
+                {
+                    super.initFrom(from, dist);
+                    this.from = from;
+                }
+
+                @Override
+                public void initTo(int to, double dist)
+                {
+                    super.initTo(to, dist);
+                    this.to = to;
                 }
 
                 @Override
@@ -879,6 +896,81 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                 public String toString()
                 {
                     return getName() + "|" + prepareWeighting;
+                }
+
+                @Override
+                protected void updateBestPath(EdgeIteratorState edgeState, EdgeEntry entryCurrent, int traversalId)
+                {
+                    super.updateBestPath(edgeState, entryCurrent, traversalId);
+
+                    if(!traversalMode.isEdgeBased())
+                        return;
+
+                    //TODO: REFACT THIS BEAUTIFUL PIECE CODE
+                    boolean reverse = bestWeightMapFrom == bestWeightMapOther;
+
+                    TIntObjectMap<Set<Integer>> node2Trav = reverse ? node2TravTo : node2TravFrom;
+                    Set<Integer> travs = node2Trav.get(edgeState.getAdjNode());
+                    if(travs == null)
+                    {
+                        travs = new HashSet<Integer>(2);
+                        node2Trav.put(edgeState.getAdjNode(), travs);
+                    }
+                    travs.add(traversalId);
+
+                    if(reverse)
+                    {
+                        if(edgeState.getAdjNode() == from && entryCurrent.weight < bestPath.getWeight())
+                        {
+                            bestPath.setSwitchToFrom(reverse);
+                            bestPath.setEdgeEntry(entryCurrent);
+                            bestPath.setWeight(entryCurrent.weight);
+                            bestPath.setEdgeEntryTo(createEdgeEntry(from, 0));
+                        }
+                    }else
+                    {
+                        if(edgeState.getAdjNode() == to && entryCurrent.weight < bestPath.getWeight())
+                        {
+                            bestPath.setSwitchToFrom(reverse);
+                            bestPath.setEdgeEntry(entryCurrent);
+                            bestPath.setWeight(entryCurrent.weight);
+                            bestPath.setEdgeEntryTo(createEdgeEntry(to, 0));
+                        }
+
+                    }
+
+
+                    TIntObjectMap<Set<Integer>> node2TravOther = reverse ? node2TravFrom : node2TravTo;
+                    Set<Integer> otherTravs = node2TravOther.get(edgeState.getAdjNode());
+                    if(otherTravs == null)
+                        return;
+
+                    for(int otherTraversalId : otherTravs)
+                    {
+
+                        EdgeEntry entryOther = bestWeightMapOther.get(otherTraversalId);
+                        double newWeight = entryCurrent.weight + entryOther.weight;
+                        if(Double.isInfinite(newWeight))
+                            continue;
+
+                        if (entryOther.adjNode != entryCurrent.adjNode)
+                        {
+                            // prevents the path to contain the edge at the meeting point twice and subtract the weight (excluding turn weight => no previous edge)
+                            entryCurrent = entryCurrent.parent;
+                            newWeight -= weighting.calcWeight(edgeState, reverse, EdgeIterator.NO_EDGE);
+
+                        } else if(entryOther.edge == entryCurrent.edge && !traversalMode.hasUTurnSupport())
+                        {
+                                continue;
+                        }
+                        if (newWeight < bestPath.getWeight())
+                        {
+                            bestPath.setSwitchToFrom(reverse);
+                            bestPath.setEdgeEntry(entryCurrent);
+                            bestPath.setWeight(newWeight);
+                            bestPath.setEdgeEntryTo(entryOther);
+                        }
+                    }
                 }
             };
         } else

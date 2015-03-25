@@ -11,8 +11,8 @@ public class PrepareContractionHierarchiesEdgeBasedTest extends PrepareContracti
 
     @Test
     @Override
-    public void testDirectedGraph2()
+    public void testRoundaboutUnpacking()
     {
-        super.testDirectedGraph2();
+        super.testRoundaboutUnpacking();
     }
 }
