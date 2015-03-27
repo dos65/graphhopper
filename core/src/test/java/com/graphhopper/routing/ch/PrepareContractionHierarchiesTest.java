@@ -22,21 +22,46 @@ import com.graphhopper.routing.ch.PrepareContractionHierarchies.Shortcut;
 import com.graphhopper.routing.util.*;
 import com.graphhopper.storage.*;
 import com.graphhopper.util.*;
+
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 /**
  * @author Peter Karich
  */
+@RunWith(Parameterized.class)
 public class PrepareContractionHierarchiesTest
 {
+    /**
+     * Runs the same test with each of the supported traversal modes
+     */
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<Object[]> configs()
+    {
+        return Arrays.asList(new Object[][]
+                {
+                        {TraversalMode.NODE_BASED},
+                        {TraversalMode.EDGE_BASED_1DIR},
+                        {TraversalMode.EDGE_BASED_2DIR},
+                        {TraversalMode.EDGE_BASED_2DIR_UTURN}
+                });
+    }
+
+    public PrepareContractionHierarchiesTest(TraversalMode tMode)
+    {
+        this.tMode = tMode;
+    }
+
     private final EncodingManager encodingManager = new EncodingManager("CAR");
     private final CarFlagEncoder carEncoder = (CarFlagEncoder) encodingManager.getEncoder("CAR");
     private final Weighting weighting = new ShortestWeighting();
-    private final TraversalMode tMode = TraversalMode.NODE_BASED;
+    private final TraversalMode tMode;
     private Directory dir;
 
     LevelGraph createGraph()

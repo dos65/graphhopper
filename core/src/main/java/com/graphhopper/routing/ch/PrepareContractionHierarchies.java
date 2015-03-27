@@ -214,6 +214,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
     boolean prepareNodes()
     {
+        int shortcutsCount = 0;
         int nodes = prepareGraph.getNodes();
         for (int node = 0; node < nodes; node++)
         {
@@ -224,11 +225,13 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         {
             int priority = oldPriorities[node] = calculatePriority(node);
             sortedNodes.insert(node, priority);
+            shortcutsCount += calcScHandler.shortcuts;
         }
 
         if (sortedNodes.isEmpty())
             return false;
 
+        prepareAlgo.handlePossibleShortcutsCount(shortcutsCount);
         return true;
     }
 
@@ -461,6 +464,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             // and also in the graph for u->w. If existing AND identical weight => update setProperties.
             // Hint: shortcuts are always one-way due to distinct level of every node but we don't
             // know yet the levels so we need to determine the correct direction or if both directions
+            //System.out.println("ADD " + u_fromNode + " " + w_toNode);
             Shortcut sc = new Shortcut(u_fromNode, w_toNode, existingDirectWeight, existingDistSum);
             if (shortcuts.containsKey(sc))
                 return;
@@ -545,6 +549,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
      */
     void findShortcuts( ShortcutHandler sch )
     {
+//        if(sch instanceof AddShortcutHandler)
+//            System.out.println("contract " + sch.getNode());
         long tmpDegreeCounter = 0;
         EdgeIterator incomingEdges = vehicleInExplorer.setBaseNode(sch.getNode());
         // collect outgoing nodes (goal-nodes) only once
