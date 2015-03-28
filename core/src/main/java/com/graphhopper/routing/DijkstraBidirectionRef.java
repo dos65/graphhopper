@@ -229,7 +229,7 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
         if (entryOther == null)
             return;
 
-        boolean reverse = bestWeightMapFrom == bestWeightMapOther;
+        boolean reverse = isReverse();
 
         // update μ
         double newWeight = entryCurrent.weight + entryOther.weight;
@@ -303,6 +303,11 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
     void setBestPath( PathBidirRef bestPath )
     {
         this.bestPath = bestPath;
+    }
+
+    protected boolean isReverse()
+    {
+        return bestWeightMapFrom == bestWeightMapOther;
     }
 
     @Override

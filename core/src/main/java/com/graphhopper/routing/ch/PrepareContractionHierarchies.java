@@ -824,51 +824,57 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             algo = astarBi;
         } else if (AlgorithmOptions.DIJKSTRA_BI.equals(opts.getAlgorithm()))
         {
-            algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
+            if(traversalMode.isEdgeBased())
             {
-                @Override
-                protected void initCollections( int nodes )
+                algo = new DijkstraBidirectionRefEdgeSupport(graph, prepareFlagEncoder, prepareWeighting, traversalMode);
+            } else
+            {
+                algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
                 {
-                    // algorithm with CH does not need that much memory pre allocated
-                    super.initCollections(Math.min(initialCollectionSize, nodes));
-                }
+                    @Override
+                    protected void initCollections(int nodes)
+                    {
+                        // algorithm with CH does not need that much memory pre allocated
+                        super.initCollections(Math.min(initialCollectionSize, nodes));
+                    }
 
-                @Override
-                public boolean finished()
-                {
-                    // we need to finish BOTH searches for CH!
-                    if (finishedFrom && finishedTo)
-                        return true;
+                    @Override
+                    public boolean finished()
+                    {
+                        // we need to finish BOTH searches for CH!
+                        if (finishedFrom && finishedTo)
+                            return true;
 
-                    // changed also the final finish condition for CH                
-                    return currFrom.weight >= bestPath.getWeight() && currTo.weight >= bestPath.getWeight();
-                }
+                        // changed also the final finish condition for CH
+                        return currFrom.weight >= bestPath.getWeight() && currTo.weight >= bestPath.getWeight();
+                    }
 
-                @Override
-                protected boolean isWeightLimitExceeded()
-                {
-                    return currFrom.weight > weightLimit && currTo.weight > weightLimit;
-                }
+                    @Override
+                    protected boolean isWeightLimitExceeded()
+                    {
+                        return currFrom.weight > weightLimit && currTo.weight > weightLimit;
+                    }
 
-                @Override
-                protected Path createAndInitPath()
-                {
-                    bestPath = new Path4CH(graph, graph.getBaseGraph(), flagEncoder);
-                    return bestPath;
-                }
+                    @Override
+                    protected Path createAndInitPath()
+                    {
+                        bestPath = new Path4CH(graph, graph.getBaseGraph(), flagEncoder);
+                        return bestPath;
+                    }
 
-                @Override
-                public String getName()
-                {
-                    return "dijkstrabiCH";
-                }
+                    @Override
+                    public String getName()
+                    {
+                        return "dijkstrabiCH";
+                    }
 
-                @Override
-                public String toString()
-                {
-                    return getName() + "|" + prepareWeighting;
-                }
-            };
+                    @Override
+                    public String toString()
+                    {
+                        return getName() + "|" + prepareWeighting;
+                    }
+                };
+            }
         } else
         {
             throw new UnsupportedOperationException("Algorithm " + opts.getAlgorithm() + " not supported for Contraction Hierarchies");

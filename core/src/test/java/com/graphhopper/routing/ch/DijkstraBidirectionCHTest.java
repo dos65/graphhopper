@@ -25,6 +25,11 @@ import com.graphhopper.util.EdgeSkipIterState;
 import com.graphhopper.util.Helper;
 import static org.junit.Assert.*;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Tests if a graph optimized by contraction hierarchies returns the same results as a none
@@ -32,11 +37,31 @@ import org.junit.Test;
  * <p/>
  * @author Peter Karich
  */
+
+@RunWith(Parameterized.class)
 public class DijkstraBidirectionCHTest extends AbstractRoutingAlgorithmTester
 {
     // matrix graph is expensive to create and to prepare!
     private static Graph preparedMatrixGraph;
+    private final TraversalMode traversalMode;
 
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<Object[]> configs()
+    {
+        return Arrays.asList(new Object[][]
+                {
+                        {TraversalMode.NODE_BASED},
+                        {TraversalMode.EDGE_BASED_1DIR},
+                        {TraversalMode.EDGE_BASED_2DIR},
+                        {TraversalMode.EDGE_BASED_2DIR_UTURN}
+                });
+    }
+
+
+    public DijkstraBidirectionCHTest( TraversalMode tMode )
+    {
+        this.traversalMode = tMode;
+    }
     @Override
     public Graph getMatrixGraph()
     {
@@ -66,7 +91,7 @@ public class DijkstraBidirectionCHTest extends AbstractRoutingAlgorithmTester
     public RoutingAlgorithmFactory createFactory( Graph g, AlgorithmOptions opts )
     {
         PrepareContractionHierarchies ch = new PrepareContractionHierarchies(new GHDirectory("", DAType.RAM_INT),
-                (LevelGraph) g, opts.getFlagEncoder(), opts.getWeighting(), TraversalMode.NODE_BASED);
+                (LevelGraph) g, opts.getFlagEncoder(), opts.getWeighting(), traversalMode);
         // hack: prepare matrixGraph only once
         if (g != preparedMatrixGraph)
             ch.doWork();
