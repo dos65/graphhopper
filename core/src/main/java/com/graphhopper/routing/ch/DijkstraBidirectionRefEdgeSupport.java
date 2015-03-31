@@ -148,6 +148,7 @@ class DijkstraBidirectionRefEdgeSupport extends DijkstraBidirectionRef
     private void updateBestPathByEe(EdgeIteratorState edgeState, EdgeEntry entryCurrent, EdgeEntry entryOther)
     {
 
+
         double newWeight = entryCurrent.weight + entryOther.weight;
         if (entryOther.adjNode != entryCurrent.adjNode)
         {
@@ -173,6 +174,28 @@ class DijkstraBidirectionRefEdgeSupport extends DijkstraBidirectionRef
         bestPath.setEdgeEntryTo(entryOther);
     }
 
+    @Override
+    protected boolean accept(EdgeIterator iter, int prevOrNextEdgeId)
+    {
+        if(!traversalMode.hasUTurnSupport() && prevOrNextEdgeId != EdgeIterator.NO_EDGE)
+        {
+            int viaNode, edgeFrom, edgeTo;
+            edgeFrom = iter.getEdge();
+            edgeTo = prevOrNextEdgeId;
+            viaNode = iter.getBaseNode();
+            EdgeSkipIterState edgeFromState = (EdgeSkipIterState) graph.getEdgeProps(edgeFrom, viaNode);
+            EdgeSkipIterState edgeToState = (EdgeSkipIterState) graph.getEdgeProps(edgeTo, viaNode);
+
+            PreparationTurnWeighting prepTurnWeighting = (PreparationTurnWeighting) weighting;
+            edgeFrom = prepTurnWeighting.getRealEdgeId(edgeFromState, viaNode);
+            edgeTo = prepTurnWeighting.getRealEdgeId(edgeToState, viaNode);
+
+            if (edgeFrom == edgeTo)
+                return false;
+        }
+
+        return super.accept(iter, prevOrNextEdgeId);
+    }
 
     @Override
     protected boolean isWeightLimitExceeded()
