@@ -46,9 +46,9 @@ import org.slf4j.LoggerFactory;
 public class PrepareContractionHierarchies extends AbstractAlgoPreparation implements RoutingAlgorithmFactory
 {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    private final PreparationWeighting prepareWeighting;
     private final FlagEncoder prepareFlagEncoder;
     private final TraversalMode traversalMode;
+    private WeightingWrapper prepareWeighting;
     private EdgeSkipExplorer vehicleInExplorer;
     private EdgeSkipExplorer vehicleOutExplorer;
     private EdgeSkipExplorer vehicleAllExplorer;
@@ -92,6 +92,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             throw new IllegalArgumentException("Enabling the speed-up mode is currently only supported for the first vehicle.");
 
         prepareWeighting = new PreparationWeighting(weighting);
+        prepareWeighting = createTurnWeighting(prepareWeighting);
         originalEdges = dir.find("original_edges");
         originalEdges.create(1000);
     }
@@ -176,6 +177,17 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     public void setInitialCollectionSize( int initialCollectionSize )
     {
         this.initialCollectionSize = initialCollectionSize;
+    }
+
+    private WeightingWrapper createTurnWeighting(WeightingWrapper weighting)
+    {
+        Weighting wrapped = weighting.getWrappedWeighting();
+        if(wrapped instanceof TurnWeighting)
+        {
+            TurnWeighting turnWeighting = (TurnWeighting) wrapped;
+            return new PreparationTurnWeighting(prepareGraph, prepareGraph, turnWeighting, prepareFlagEncoder);
+        }
+        return weighting;
     }
 
     @Override
@@ -552,7 +564,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 //        if(sch instanceof AddShortcutHandler)
 //            System.out.println("contract " + sch.getNode());
         long tmpDegreeCounter = 0;
-        EdgeIterator incomingEdges = vehicleInExplorer.setBaseNode(sch.getNode());
+        EdgeSkipIterator incomingEdges = vehicleInExplorer.setBaseNode(sch.getNode());
         // collect outgoing nodes (goal-nodes) only once
         while (incomingEdges.next())
         {
@@ -772,10 +784,17 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     @Override
     public RoutingAlgorithm createAlgo( Graph graph, AlgorithmOptions opts )
     {
+        Weighting weighting = prepareWeighting;
+        if(opts.getWeighting() instanceof  TurnWeighting)
+        {
+            TurnWeighting turnWeighting = (TurnWeighting) opts.getWeighting();
+            weighting = new PreparationTurnWeighting(graph, prepareGraph, turnWeighting, opts.getFlagEncoder());
+        }
+
         AbstractBidirAlgo algo;
         if (AlgorithmOptions.ASTAR_BI.equals(opts.getAlgorithm()))
         {
-            AStarBidirection astarBi = new AStarBidirection(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
+            AStarBidirection astarBi = new AStarBidirection(graph, prepareFlagEncoder, weighting, traversalMode)
             {
                 @Override
                 protected void initCollections( int nodes )
@@ -826,10 +845,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         {
             if(traversalMode.isEdgeBased())
             {
-                algo = new DijkstraBidirectionRefEdgeSupport(graph, prepareFlagEncoder, prepareWeighting, traversalMode);
+                algo = new DijkstraBidirectionRefEdgeSupport(graph, prepareFlagEncoder, weighting, traversalMode);
             } else
             {
-                algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
+                algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, weighting, traversalMode)
                 {
                     @Override
                     protected void initCollections(int nodes)

@@ -26,7 +26,7 @@ import java.util.List;
  *
  * @author Peter Karich
  */
-class VirtualEdgeIterator implements EdgeIterator, EdgeSkipIterState {
+public class VirtualEdgeIterator implements EdgeIterator, EdgeSkipIterState {
     private final List<EdgeIteratorState> edges;
     private int current;
 

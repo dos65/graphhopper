@@ -17,11 +17,14 @@
  */
 package com.graphhopper.storage;
 
+import com.graphhopper.routing.VirtualEdgeIterator;
 import com.graphhopper.routing.ch.PrepareEncoder;
 import com.graphhopper.routing.util.AllEdgesSkipIterator;
 import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.routing.util.EncodingManager;
 import com.graphhopper.util.*;
+import gnu.trove.list.TIntList;
+import gnu.trove.list.array.TIntArrayList;
 
 /**
  * A Graph necessary for shortcut algorithms like Contraction Hierarchies. This class enables the
@@ -47,6 +50,12 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
     public LevelGraphStorage( Directory dir, EncodingManager encodingManager, boolean enabled3D )
     {
         super(dir, encodingManager, enabled3D);
+        baseGraph = new BaseGraph(this);
+    }
+
+    public LevelGraphStorage(GHDirectory dir, EncodingManager encodingManager, boolean enable3D, TurnCostExtension turnCostExtension)
+    {
+        super(dir, encodingManager, enable3D, turnCostExtension);
         baseGraph = new BaseGraph(this);
     }
 
@@ -254,6 +263,7 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
                 throw new IllegalStateException("Cannot call setWayGeometry on shortcut " + getEdge());
             return super.setWayGeometry(list);
         }
+
     }
 
     @Override
@@ -393,6 +403,29 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
         {
             return LevelGraphStorage.this.getWeight(this);
         }
+
+/*        @Override
+        public TIntList unpack()
+        {
+            if(!isShortcut())
+                throw new IllegalStateException("unpack is only available for shortcuts");
+
+            TIntList edges = new TIntArrayList(4);
+            int edge1 = getSkippedEdge1();
+
+            if(edge1 > lastEdgeIndex)
+                edges.addAll(new SingleLevelEdge(edge1, getBaseNode()).unpack());
+            else
+                edges.add(edge1);
+
+            int edge2 = getSkippedEdge2();
+            if(edge2 > lastEdgeIndex)
+                edges.addAll(new SingleLevelEdge(edge2, getAdjNode()).unpack());
+            else
+                edges.add(edge2);
+
+            return edges;
+        }*/
     }
 
     final void setWeight( EdgeSkipIterState edge, double weight )
@@ -445,4 +478,5 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
     {
         return baseGraph;
     }
+
 }

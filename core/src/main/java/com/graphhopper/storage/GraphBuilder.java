@@ -105,7 +105,7 @@ public class GraphBuilder
      */
     public GraphStorage build()
     {
-        Directory dir;
+        GHDirectory dir;
         if (mmap)
             dir = new MMapDirectory(location);
         else
@@ -113,8 +113,12 @@ public class GraphBuilder
 
         GraphStorage graph;
         if (level)
-            graph = new LevelGraphStorage(dir, encodingManager, elevation);
-        else
+        {
+            if(encodingManager.needsTurnCostsSupport())
+                graph = new LevelGraphStorage(dir, encodingManager, elevation, new TurnCostExtension());
+            else
+                graph = new LevelGraphStorage(dir, encodingManager, elevation);
+        } else
         {
             if (encodingManager.needsTurnCostsSupport())
                 graph = new GraphHopperStorage(dir, encodingManager, elevation, new TurnCostExtension());

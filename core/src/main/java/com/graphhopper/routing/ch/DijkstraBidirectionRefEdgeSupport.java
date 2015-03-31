@@ -2,16 +2,22 @@ package com.graphhopper.routing.ch;
 
 import com.graphhopper.routing.DijkstraBidirectionRef;
 import com.graphhopper.routing.Path;
+import com.graphhopper.routing.QueryGraph;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.routing.util.TraversalMode;
+import com.graphhopper.routing.util.TurnWeighting;
 import com.graphhopper.routing.util.Weighting;
 import com.graphhopper.storage.EdgeEntry;
 import com.graphhopper.storage.Graph;
+import com.graphhopper.storage.LevelGraph;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.EdgeIteratorState;
+import com.graphhopper.util.EdgeSkipIterState;
+import com.graphhopper.util.EdgeSkipIterator;
 import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -79,7 +85,10 @@ class DijkstraBidirectionRefEdgeSupport extends DijkstraBidirectionRef
     {
         EdgeEntry entryOther = bestWeightMapOther.get(traversalId);
         if(entryOther != null)
-            updateBestPathByEe(edgeState, entryCurrent, entryOther);
+        {
+            if(checkUnpacked(entryCurrent, entryOther))
+                updateBestPathByEe(edgeState, entryCurrent, entryOther);
+        }
 
         updateNode2IdsMap(edgeState.getAdjNode(), traversalId);
 
@@ -97,15 +106,48 @@ class DijkstraBidirectionRefEdgeSupport extends DijkstraBidirectionRef
 
         for(int otherId : otherIds)
         {
-            entryOther = bestWeightMapOther.get(otherId);
-            //TODO: recalc weight by last edges for TurnCosts
-            double newWeight = entryCurrent.weight + entryOther.weight;
-            updateBestPathByEe(edgeState, entryCurrent, entryOther);
+            EdgeEntry otherTravEdge = bestWeightMapOther.get(otherId);
+            if (!checkUnpacked(entryCurrent, otherTravEdge))
+                continue;
+
+            updateBestPathByEe(edgeState, entryCurrent, otherTravEdge);
         }
+    }
+
+    private boolean checkUnpacked(EdgeEntry entryCurrent, EdgeEntry entryOther)
+    {
+        if(!(weighting instanceof PreparationTurnWeighting))
+            return true;
+
+        int viaNode, edgeFrom, edgeTo;
+        edgeFrom = entryCurrent.edge;
+        edgeTo = entryOther.edge;
+        viaNode = entryCurrent.adjNode;
+
+        EdgeSkipIterState edgeFromState = (EdgeSkipIterState) graph.getEdgeProps(edgeFrom, viaNode);
+        EdgeSkipIterState edgeToState = (EdgeSkipIterState) graph.getEdgeProps(edgeTo, viaNode);
+
+        PreparationTurnWeighting prepTurnWeighting = (PreparationTurnWeighting) weighting;
+
+        edgeFrom = prepTurnWeighting.getRealEdgeId(edgeFromState, viaNode);
+        edgeTo = prepTurnWeighting.getRealEdgeId(edgeToState, viaNode);
+
+        if(edgeFrom == edgeTo && !traversalMode.hasUTurnSupport())
+            return false;
+
+        TurnWeighting turnWeighting = (TurnWeighting) prepTurnWeighting.getWrappedWeighting();
+        double turnWeight;
+        if(isReverse())
+            turnWeight = turnWeighting.calcTurnWeight(edgeTo, viaNode, edgeFrom);
+        else
+            turnWeight = turnWeighting.calcTurnWeight(edgeFrom, viaNode, edgeTo);
+
+        return !Double.isInfinite(turnWeight);
     }
 
     private void updateBestPathByEe(EdgeIteratorState edgeState, EdgeEntry entryCurrent, EdgeEntry entryOther)
     {
+
         double newWeight = entryCurrent.weight + entryOther.weight;
         if (entryOther.adjNode != entryCurrent.adjNode)
         {

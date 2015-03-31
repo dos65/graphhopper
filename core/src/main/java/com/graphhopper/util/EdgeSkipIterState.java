@@ -18,6 +18,8 @@
  */
 package com.graphhopper.util;
 
+import gnu.trove.list.TIntList;
+
 /**
  * @author Peter Karich
  */
@@ -34,4 +36,6 @@ public interface EdgeSkipIterState extends EdgeIteratorState
     EdgeSkipIterState setWeight( double weight );
 
     double getWeight();
+
+/*    TIntList unpack();*/
 }
