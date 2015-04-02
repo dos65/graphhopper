@@ -26,7 +26,7 @@ import java.util.List;
  *
  * @author Peter Karich
  */
-public class VirtualEdgeIterator implements EdgeIterator, EdgeSkipIterState {
+class VirtualEdgeIterator implements EdgeIterator, EdgeSkipIterState {
     private final List<EdgeIteratorState> edges;
     private int current;
 
@@ -194,5 +194,10 @@ public class VirtualEdgeIterator implements EdgeIterator, EdgeSkipIterState {
     {
         throw new UnsupportedOperationException("Not supported.");
     }
-    
+
+    @Override
+    public int getOrigEdge(int node)
+    {
+        throw new UnsupportedOperationException("Not supported.");
+    }
 }

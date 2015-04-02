@@ -191,5 +191,10 @@ class VirtualEdgeIState implements EdgeIteratorState, EdgeSkipIterState {
     {
         throw new UnsupportedOperationException("Not supported.");
     }
-    
+
+    @Override
+    public int getOrigEdge(int node)
+    {
+        return getEdge();
+    }
 }

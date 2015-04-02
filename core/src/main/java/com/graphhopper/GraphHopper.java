@@ -812,7 +812,7 @@ public class GraphHopper implements GraphHopperAPI
     {
         FlagEncoder defaultVehicle = getDefaultVehicle();
         Weighting weighting = createWeighting(new WeightingMap(chWeightingStr), defaultVehicle);
-        weighting = createTurnWeighting(weighting, graph, defaultVehicle);
+        //weighting = createTurnWeighting(weighting, graph, defaultVehicle);
         PrepareContractionHierarchies tmpPrepareCH = new PrepareContractionHierarchies(new GHDirectory("", DAType.RAM_INT),
                 (LevelGraph) graph, defaultVehicle, weighting, traversalMode);
         tmpPrepareCH.setPeriodicUpdates(periodicUpdates).

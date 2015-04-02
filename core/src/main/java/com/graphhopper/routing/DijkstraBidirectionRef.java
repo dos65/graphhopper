@@ -43,8 +43,8 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
 {
     private PriorityQueue<EdgeEntry> openSetFrom;
     private PriorityQueue<EdgeEntry> openSetTo;
-    private TIntObjectMap<EdgeEntry> bestWeightMapFrom;
-    private TIntObjectMap<EdgeEntry> bestWeightMapTo;
+    protected TIntObjectMap<EdgeEntry> bestWeightMapFrom;
+    protected TIntObjectMap<EdgeEntry> bestWeightMapTo;
     protected TIntObjectMap<EdgeEntry> bestWeightMapOther;
     protected EdgeEntry currFrom;
     protected EdgeEntry currTo;
@@ -229,24 +229,28 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
         if (entryOther == null)
             return;
 
-        boolean reverse = isReverse();
+        if (traversalMode.isEdgeBased() && entryOther.edge != EdgeIterator.NO_EDGE && entryOther.edge != entryCurrent.edge)
+            throw new IllegalStateException("cannot happen for edge based execution of " + getName() + " " + entryOther + " " + entryCurrent);
 
+        updateBestPathByOther(edgeState, entryCurrent, entryOther);
+    }
+
+    protected void updateBestPathByOther(EdgeIteratorState edgeState, EdgeEntry entryCurrent, EdgeEntry entryOther)
+    {
+        boolean reverse = isReverse();
         // update μ
         double newWeight = entryCurrent.weight + entryOther.weight;
         if (traversalMode.isEdgeBased())
         {
-            if (entryOther.edge != entryCurrent.edge)
-                throw new IllegalStateException("cannot happen for edge based execution of " + getName());
-
             if (entryOther.adjNode != entryCurrent.adjNode)
             {
                 // prevents the path to contain the edge at the meeting point twice and subtract the weight (excluding turn weight => no previous edge)
                 entryCurrent = entryCurrent.parent;
                 newWeight -= weighting.calcWeight(edgeState, reverse, EdgeIterator.NO_EDGE);
-            } else
+            }else
             {
                 // we detected a u-turn at meeting point, skip if not supported
-                if (!traversalMode.hasUTurnSupport())
+                if (!acceptUTurnByEE(entryCurrent, entryOther))
                     return;
             }
         }
@@ -258,6 +262,7 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
             bestPath.setWeight(newWeight);
             bestPath.setEdgeEntryTo(entryOther);
         }
+
     }
 
     TIntObjectMap<EdgeEntry> getBestFromMap()

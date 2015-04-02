@@ -43,6 +43,8 @@ public interface LevelGraph extends Graph
 
     boolean isShortcut( int edgeId );
 
+    int getOrigEdge(int edge, int node);
+
     /**
      * This method creates a shortcut between a to b which is nearly identical to creating an edge
      * except that it can be excluded or included for certain traversals or algorithms.

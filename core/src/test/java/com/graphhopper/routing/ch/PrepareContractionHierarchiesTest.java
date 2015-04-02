@@ -35,19 +35,20 @@ import org.junit.runners.Parameterized;
 /**
  * @author Peter Karich
  */
-/*@RunWith(Parameterized.class)*/
+@RunWith(Parameterized.class)
 public class PrepareContractionHierarchiesTest
 {
     /**
      * Runs the same test with each of the supported traversal modes
      */
-    /*@Parameterized.Parameters(name = "{0}")
+    @Parameterized.Parameters(name = "{0}")
     public static Collection<Object[]> configs()
     {
         return Arrays.asList(new Object[][]
                 {
                         {TraversalMode.NODE_BASED},
-                        {TraversalMode.EDGE_BASED_1DIR},
+                        //TODO: EDGE_BASED_1DIR
+                        //{TraversalMode.EDGE_BASED_1DIR},
                         {TraversalMode.EDGE_BASED_2DIR},
                         {TraversalMode.EDGE_BASED_2DIR_UTURN}
                 });
@@ -56,15 +57,9 @@ public class PrepareContractionHierarchiesTest
     public PrepareContractionHierarchiesTest(TraversalMode tMode)
     {
         this.tMode = tMode;
-    }*/
-
-
-    public PrepareContractionHierarchiesTest()
-    {
-        tMode = TraversalMode.EDGE_BASED_2DIR;
     }
 
-    private final EncodingManager encodingManager = new EncodingManager("CAR");
+    private final EncodingManager encodingManager = new EncodingManager("CAR|turnCosts=true");
     private final CarFlagEncoder carEncoder = (CarFlagEncoder) encodingManager.getEncoder("CAR");
     private final Weighting weighting = new ShortestWeighting();
     private final TraversalMode tMode;
@@ -473,75 +468,6 @@ public class PrepareContractionHierarchiesTest
         assertEquals(2, prepare.getShortcuts());
     }
 
-    @Test
-    public void testTurnCosts()
-    {
-        EncodingManager em = new EncodingManager("car|turnCosts=true");
-        LevelGraphStorage g = new GraphBuilder(em).setLevelGraph(true).levelGraphCreate();
-        initDirected2(g);
-        TurnCostExtension turnCosts = (TurnCostExtension) g.getExtension();
-        FlagEncoder turnCostEncoder = em.getEncoder("CAR");
-
-        EdgeIteratorState edgeFrom = GHUtility.getEdge(g, 8, 9);
-        EdgeIteratorState edgeTo = GHUtility.getEdge(g, 9, 10);
-        turnCosts.addTurnInfo(edgeFrom.getEdge(), 9, edgeTo.getEdge(), turnCostEncoder.getTurnFlags(true, 0));
-
-
-        TurnWeighting turnWeighting = new TurnWeighting(weighting, turnCostEncoder, turnCosts);
-
-        PrepareContractionHierarchies prepare = new PrepareContractionHierarchies(dir, g, em.getEncoder("CAR"), turnWeighting, TraversalMode.EDGE_BASED_2DIR);
-        prepare.doWork();
-
-        RoutingAlgorithm algo = prepare.createAlgo(g, new AlgorithmOptions("dijkstrabi", turnCostEncoder, turnWeighting, TraversalMode.EDGE_BASED_2DIR));
-        Path p = algo.calcPath(0, 10);
-        assertTrue(p.isFound());
-        assertEquals(Helper.createTList(0, 17, 16, 15, 14, 13, 12, 11, 9, 10), p.calcNodes());
-    }
-
-    @Test
-    public void testWithTurnCosts2()
-    {
-        EncodingManager em = new EncodingManager("car|turnCosts=true");
-        LevelGraphStorage g = new GraphBuilder(em).setLevelGraph(true).levelGraphCreate();
-        /*
-             5 4    0
-              \|    |
-            6-3--2--1
-              |  |  |
-              7--8--9-10
-                    |
-                    11
-         */
-        g.edge(0, 1, 1, true);
-        g.edge(1, 2, 1, true);
-        g.edge(2, 3, 1, true);
-        g.edge(3, 4, 1, true);
-        g.edge(3, 5, 1, true);
-        g.edge(3, 6, 1, true);
-        g.edge(3, 7, 1, true);
-        g.edge(7, 8, 1, true);
-        g.edge(8, 9, 1, true);
-        g.edge(1, 9, 1, true);
-        g.edge(9, 10, 1, true);
-        g.edge(9, 11, 1, true);
-
-
-        TurnCostExtension turnCosts = (TurnCostExtension) g.getExtension();
-        FlagEncoder turnCostEncoder = em.getEncoder("CAR");
-
-        EdgeIteratorState edgeFrom = GHUtility.getEdge(g, 1, 9);
-        EdgeIteratorState edgeTo = GHUtility.getEdge(g, 9, 10);
-        turnCosts.addTurnInfo(edgeFrom.getEdge(), 9, edgeTo.getEdge(), turnCostEncoder.getTurnFlags(true, 0));
-
-        TurnWeighting turnWeighting = new TurnWeighting(weighting, turnCostEncoder, turnCosts);
-        PrepareContractionHierarchies prepare = new PrepareContractionHierarchies(dir, g, em.getEncoder("CAR"), turnWeighting, TraversalMode.EDGE_BASED_2DIR);
-        prepare.doWork();
-
-        RoutingAlgorithm algo = prepare.createAlgo(g, new AlgorithmOptions("dijkstrabi", turnCostEncoder, turnWeighting, TraversalMode.EDGE_BASED_2DIR));
-        Path p = algo.calcPath(0, 10);
-        assertTrue(p.isFound());
-        assertEquals(Helper.createTList(0, 1, 2, 8, 9, 10), p.calcNodes());
-    }
 
     public void testUTurn()
     {

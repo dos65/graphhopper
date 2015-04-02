@@ -28,6 +28,10 @@ import com.graphhopper.routing.util.*;
 import com.graphhopper.storage.*;
 import com.graphhopper.util.*;
 import java.util.*;
+
+import gnu.trove.procedure.TIntProcedure;
+import gnu.trove.set.TIntSet;
+import gnu.trove.set.hash.TIntHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +52,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final FlagEncoder prepareFlagEncoder;
     private final TraversalMode traversalMode;
-    private WeightingWrapper prepareWeighting;
+    private Weighting prepareWeighting;
+    private Weighting prepareSuperWeighting;
     private EdgeSkipExplorer vehicleInExplorer;
     private EdgeSkipExplorer vehicleOutExplorer;
     private EdgeSkipExplorer vehicleAllExplorer;
@@ -79,6 +84,9 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     private double nodesContractedPercentage = 100;
     private double logMessagesPercentage = 20;
 
+    public final static int LEAD_TO_INFINITY = Integer.MIN_VALUE;
+    private TIntSet leadToInfinityNodes = new TIntHashSet();
+
     public PrepareContractionHierarchies( Directory dir, LevelGraph g, FlagEncoder encoder, Weighting weighting, TraversalMode traversalMode )
     {
         this.prepareGraph = g;
@@ -91,10 +99,27 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         if ((scFwdDir & PrepareEncoder.getScFwdDir()) == 0)
             throw new IllegalArgumentException("Enabling the speed-up mode is currently only supported for the first vehicle.");
 
-        prepareWeighting = new PreparationWeighting(weighting);
-        prepareWeighting = createTurnWeighting(prepareWeighting);
+
         originalEdges = dir.find("original_edges");
         originalEdges.create(1000);
+
+        initWeighting(weighting);
+    }
+
+    private void initWeighting(Weighting weighting)
+    {
+        prepareSuperWeighting = new PreparationWeighting(weighting);
+        if(!prepareFlagEncoder.supports(TurnCostExtension.class))
+        {
+            prepareWeighting = prepareSuperWeighting;
+            return;
+        }
+
+        GraphExtension extension = prepareGraph.getExtension();
+        if(extension == null || (extension instanceof TurnCostExtension))
+            throw new IllegalStateException("Encoder:" + prepareFlagEncoder + " required TurnCostsExtension");
+
+        prepareWeighting = createTurnWeighting(prepareGraph, prepareSuperWeighting, (TurnCostExtension) extension);
     }
 
     /**
@@ -179,15 +204,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         this.initialCollectionSize = initialCollectionSize;
     }
 
-    private WeightingWrapper createTurnWeighting(WeightingWrapper weighting)
+    private Weighting createTurnWeighting(Graph graph, Weighting weighting, TurnCostExtension turnCostExt)
     {
-        Weighting wrapped = weighting.getWrappedWeighting();
-        if(wrapped instanceof TurnWeighting)
-        {
-            TurnWeighting turnWeighting = (TurnWeighting) wrapped;
-            return new PreparationTurnWeighting(prepareGraph, prepareGraph, turnWeighting, prepareFlagEncoder);
-        }
-        return weighting;
+        PrepareTurnCostExtension prepareExtension = new PrepareTurnCostExtension(turnCostExt);
+        return new TurnWeighting(weighting, prepareFlagEncoder, prepareExtension);
     }
 
     @Override
@@ -210,6 +230,16 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             return;
 
         contractNodes();
+
+        leadToInfinityNodes.forEach(new TIntProcedure()
+        {
+            @Override
+            public boolean execute(int value)
+            {
+                prepareGraph.setLevel(value, LEAD_TO_INFINITY);
+                return true;
+            }
+        });
     }
 
     boolean prepareEdges()
@@ -599,7 +629,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                             + ", dist:" + outgoingEdges.getDistance() + ", speed:" + prepareFlagEncoder.getSpeed(outgoingEdges.getFlags()));
 
                 if (Double.isInfinite(existingDirectWeight))
+                {
+                    System.out.println("INFINITY");
+                    leadToInfinityNodes.add(u_fromNode);
                     continue;
+                }
 
                 double existingDistSum = v_u_dist + outgoingEdges.getDistance();
                 prepareAlgo.setWeightLimit(existingDirectWeight);
@@ -784,11 +818,12 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     @Override
     public RoutingAlgorithm createAlgo( Graph graph, AlgorithmOptions opts )
     {
-        Weighting weighting = prepareWeighting;
+        Weighting weighting = prepareSuperWeighting;
         if(opts.getWeighting() instanceof  TurnWeighting)
         {
             TurnWeighting turnWeighting = (TurnWeighting) opts.getWeighting();
-            weighting = new PreparationTurnWeighting(graph, prepareGraph, turnWeighting, opts.getFlagEncoder());
+            TurnCostExtension extension = turnWeighting.getTurnCostExt();
+            weighting = createTurnWeighting(graph, prepareSuperWeighting, new PrepareTurnCostExtension(extension));
         }
 
         AbstractBidirAlgo algo;
@@ -843,11 +878,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             algo = astarBi;
         } else if (AlgorithmOptions.DIJKSTRA_BI.equals(opts.getAlgorithm()))
         {
-            if(traversalMode.isEdgeBased())
+            /*if(traversalMode.isEdgeBased())
             {
                 algo = new DijkstraBidirectionRefEdgeSupport(graph, prepareFlagEncoder, weighting, traversalMode);
             } else
-            {
+            {*/
                 algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, weighting, traversalMode)
                 {
                     @Override
@@ -892,14 +927,119 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                     {
                         return getName() + "|" + prepareWeighting;
                     }
+
+                    @Override
+                    protected boolean accept(EdgeIterator iter, int prevOrNextEdgeId)
+                    {
+                        if(!traversalMode.isEdgeBased())
+                            return super.accept(iter, prevOrNextEdgeId) && levelFilter.accept(iter);
+
+                        return acceptAndCheck(iter, prevOrNextEdgeId);
+                    }
+
+                    @Override
+                    public void initFrom(int from, double dist)
+                    {
+                        super.initFrom(from, dist);
+                        if(!traversalMode.isEdgeBased())
+                            return;
+
+                        EdgeIterator iter = inEdgeExplorer.setBaseNode(from);
+                        while(iter.next())
+                        {
+                            if(!super.accept(iter, EdgeIterator.NO_EDGE))
+                                continue;
+
+                            int traversalId = traversalMode.createTraversalId(iter, true);
+                            bestWeightMapFrom.put(traversalId, createEdgeEntry(from, 0));
+                        }
+
+                    }
+
+                    @Override
+                    public void initTo(int to, double dist)
+                    {
+                        super.initTo(to, dist);
+                        if(!traversalMode.isEdgeBased())
+                            return;
+
+                        EdgeIterator iter = outEdgeExplorer.setBaseNode(to);
+                        while(iter.next())
+                        {
+                            if(!super.accept(iter, EdgeIterator.NO_EDGE))
+                                continue;
+
+                            int traversalId = traversalMode.createTraversalId(iter, false);
+                            bestWeightMapTo.put(traversalId, createEdgeEntry(to, 0));
+                        }
+                    }
+
+                    private boolean acceptAndCheck(EdgeIterator iter, int prevOrNextEdgeId)
+                    {
+                        boolean globalAccept = super.accept(iter, prevOrNextEdgeId);
+                        if(!globalAccept)
+                            return globalAccept;
+
+                        boolean levelAccept = levelFilter.accept(iter);
+                        int traversalId = traversalMode.createTraversalId(iter, isReverse());
+                        if(!levelAccept)
+                        {
+                            EdgeEntry entryCurrent = isReverse()? currTo : currFrom;
+                            EdgeEntry entryOther = bestWeightMapOther.get(traversalId);
+
+                            if(entryOther != null)
+                            {
+                                double weight = weighting.calcWeight(iter, isReverse(), entryCurrent.edge);
+                                if(!Double.isInfinite(weight))
+                                    updateBestPathByOther(iter, entryCurrent, entryOther);
+                            }
+                        }
+                        return levelAccept && globalAccept;
+                    }
+
+                    @Override
+                    protected boolean checkUTurn(EdgeIterator iter, int prevOrNextEdgeId)
+                    {
+                        if(traversalMode.hasUTurnSupport())
+                            return true;
+
+                        return checkUTurnByOrigEdge(iter.getEdge(), prevOrNextEdgeId, iter.getBaseNode());
+                    }
+
+                    @Override
+                    protected boolean acceptUTurnByEE(EdgeEntry entryFrom, EdgeEntry entryOther)
+                    {
+                        if(traversalMode.hasUTurnSupport())
+                            return true;
+
+                        //TODO
+                        if(entryFrom.adjNode != entryOther.adjNode)
+                            throw new IllegalArgumentException();
+
+                        return checkUTurnByOrigEdge(entryFrom.edge, entryOther.edge, entryFrom.adjNode);
+                    }
+
+                    private boolean checkUTurnByOrigEdge(int edge1, int edge2, int viaNode)
+                    {
+                        if(edge1 == EdgeIterator.NO_EDGE || edge2 == EdgeIterator.NO_EDGE)
+                            return true;
+
+                        EdgeSkipIterState state1 = (EdgeSkipIterState) graph.getEdgeProps(edge1, viaNode);
+                        EdgeSkipIterState state2 = (EdgeSkipIterState) graph.getEdgeProps(edge2, viaNode);
+
+                        int origEdge1 = state1.getOrigEdge(viaNode);
+                        int origEdge2 = state2.getOrigEdge(viaNode);
+
+                        return origEdge1 != origEdge2;
+                    }
                 };
-            }
+            //}
         } else
         {
             throw new UnsupportedOperationException("Algorithm " + opts.getAlgorithm() + " not supported for Contraction Hierarchies");
         }
 
-        algo.setEdgeFilter(levelFilter);
+        //algo.setEdgeFilter(levelFilter);
         return algo;
     }
 
@@ -979,6 +1119,31 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                 str = from + "->";
 
             return str + to + ", weight:" + weight + " (" + skippedEdge1 + "," + skippedEdge2 + ")";
+        }
+    }
+
+    class PrepareTurnCostExtension extends TurnCostExtension
+    {
+        private final TurnCostExtension mainExtension;
+
+        PrepareTurnCostExtension( TurnCostExtension mainExtension)
+        {
+            this.mainExtension = mainExtension;
+        }
+
+        @Override
+        public long getTurnCostFlags(int edgeFrom, int nodeVia, int edgeTo)
+        {
+            int origEdgeFrom = prepareGraph.getOrigEdge(edgeFrom, nodeVia);
+            int origEdgeTo = prepareGraph.getOrigEdge(edgeTo, nodeVia);
+
+            if(origEdgeFrom != EdgeIterator.NO_EDGE)
+                edgeFrom = origEdgeFrom;
+
+            if(origEdgeTo != EdgeIterator.NO_EDGE)
+                edgeTo = origEdgeTo;
+
+            return mainExtension.getTurnCostFlags(edgeFrom, nodeVia, edgeTo);
         }
     }
 

@@ -19,7 +19,6 @@
 package com.graphhopper.routing.ch;
 
 import com.graphhopper.routing.util.Weighting;
-import com.graphhopper.routing.util.WeightingWrapper;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.EdgeSkipIterState;
 
@@ -28,7 +27,7 @@ import com.graphhopper.util.EdgeSkipIterState;
  * <p>
  * @author Peter Karich
  */
-public class PreparationWeighting implements WeightingWrapper
+public class PreparationWeighting implements Weighting
 {
     private final Weighting userWeighting;
 
@@ -62,9 +61,4 @@ public class PreparationWeighting implements WeightingWrapper
         return "PREPARE+" + userWeighting.toString();
     }
 
-    @Override
-    public Weighting getWrappedWeighting()
-    {
-        return userWeighting;
-    }
 }

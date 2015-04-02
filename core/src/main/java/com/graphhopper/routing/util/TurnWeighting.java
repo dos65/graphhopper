@@ -27,7 +27,7 @@ import com.graphhopper.util.EdgeIteratorState;
  * @author Karl Hübner
  * @author Peter Karich
  */
-public class TurnWeighting implements WeightingWrapper
+public class TurnWeighting implements Weighting
 {
     /**
      * Encoder, which decodes the turn flags
@@ -107,9 +107,4 @@ public class TurnWeighting implements WeightingWrapper
         return turnCostExt;
     }
 
-    @Override
-    public Weighting getWrappedWeighting()
-    {
-        return superWeighting;
-    }
 }

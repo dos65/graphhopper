@@ -20,7 +20,9 @@ package com.graphhopper.routing;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.routing.util.TraversalMode;
 import com.graphhopper.routing.util.Weighting;
+import com.graphhopper.storage.EdgeEntry;
 import com.graphhopper.storage.Graph;
+import com.graphhopper.util.EdgeIterator;
 
 /**
  * Common subclass for bidirectional algorithms.
@@ -79,4 +81,13 @@ public abstract class AbstractBidirAlgo extends AbstractRoutingAlgorithm
     {
         return visitedCountFrom + visitedCountTo;
     }
+
+    protected boolean acceptUTurnByEE(EdgeEntry entryFrom, EdgeEntry entryOther)
+    {
+        if(traversalMode.hasUTurnSupport())
+            return true;
+
+        return entryFrom.edge != entryOther.edge;
+    }
+
 }

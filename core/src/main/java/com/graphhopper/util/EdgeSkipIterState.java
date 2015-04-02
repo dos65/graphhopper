@@ -37,5 +37,5 @@ public interface EdgeSkipIterState extends EdgeIteratorState
 
     double getWeight();
 
-/*    TIntList unpack();*/
+    int getOrigEdge(int node);
 }

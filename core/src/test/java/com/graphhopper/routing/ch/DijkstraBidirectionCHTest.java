@@ -51,7 +51,8 @@ public class DijkstraBidirectionCHTest extends AbstractRoutingAlgorithmTester
         return Arrays.asList(new Object[][]
                 {
                         {TraversalMode.NODE_BASED},
-                        {TraversalMode.EDGE_BASED_1DIR},
+                        //TODO: EDGE_BASED_1DIR
+                        //{TraversalMode.EDGE_BASED_1DIR},
                         {TraversalMode.EDGE_BASED_2DIR},
                         {TraversalMode.EDGE_BASED_2DIR_UTURN}
                 });
@@ -62,6 +63,7 @@ public class DijkstraBidirectionCHTest extends AbstractRoutingAlgorithmTester
     {
         this.traversalMode = tMode;
     }
+
     @Override
     public Graph getMatrixGraph()
     {
