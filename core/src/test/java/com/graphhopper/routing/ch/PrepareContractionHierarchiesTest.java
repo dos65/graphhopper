@@ -35,13 +35,13 @@ import org.junit.runners.Parameterized;
 /**
  * @author Peter Karich
  */
-@RunWith(Parameterized.class)
+//@RunWith(Parameterized.class)
 public class PrepareContractionHierarchiesTest
 {
     /**
      * Runs the same test with each of the supported traversal modes
      */
-    @Parameterized.Parameters(name = "{0}")
+    /*@Parameterized.Parameters(name = "{0}")
     public static Collection<Object[]> configs()
     {
         return Arrays.asList(new Object[][]
@@ -57,6 +57,11 @@ public class PrepareContractionHierarchiesTest
     public PrepareContractionHierarchiesTest(TraversalMode tMode)
     {
         this.tMode = tMode;
+    }*/
+
+    public PrepareContractionHierarchiesTest()
+    {
+        this.tMode = TraversalMode.EDGE_BASED_2DIR;
     }
 
     private final EncodingManager encodingManager = new EncodingManager("CAR|turnCosts=true");
@@ -467,7 +472,6 @@ public class PrepareContractionHierarchiesTest
         prepare.doWork();
         assertEquals(2, prepare.getShortcuts());
     }
-
 
     public void testUTurn()
     {

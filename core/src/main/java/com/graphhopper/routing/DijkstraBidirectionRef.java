@@ -128,6 +128,21 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
     @Override
     protected Path extractPath()
     {
+        for(int i : bestWeightMapFrom.keys())
+        {
+            for(int y : bestWeightMapTo.keys())
+            {
+                if(i == y)
+                {   EdgeEntry e1 = bestWeightMapFrom.get(i);
+                    EdgeEntry e2 = bestWeightMapTo.get(i);
+
+                    System.out.println("TRAV:" + i + " " + e1 + " " + e2);
+                    System.out.println("  adj:" + e1.adjNode + " " + e2.adjNode);
+                }
+            }
+
+        }
+
         if (finished())
             return bestPath.extract();
 
@@ -198,7 +213,10 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
             int traversalId = traversalMode.createTraversalId(iter, reverse);
             double tmpWeight = weighting.calcWeight(iter, reverse, currEdge.edge) + currEdge.weight;
             if (Double.isInfinite(tmpWeight))
+            {
+                System.out.println("INFINITY");
                 continue;
+            }
 
             EdgeEntry ee = shortestWeightMap.get(traversalId);
             if (ee == null)
@@ -214,10 +232,10 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
                 ee.weight = tmpWeight;
                 ee.parent = currEdge;
                 prioQueue.add(ee);
-            } else
+            }/* else
                 continue;
 
-            if (updateBestPath)
+            if (updateBestPath)*/
                 updateBestPath(iter, ee, traversalId);
         }
     }
@@ -229,19 +247,14 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
         if (entryOther == null)
             return;
 
-        if (traversalMode.isEdgeBased() && entryOther.edge != EdgeIterator.NO_EDGE && entryOther.edge != entryCurrent.edge)
-            throw new IllegalStateException("cannot happen for edge based execution of " + getName() + " " + entryOther + " " + entryCurrent);
-
-        updateBestPathByOther(edgeState, entryCurrent, entryOther);
-    }
-
-    protected void updateBestPathByOther(EdgeIteratorState edgeState, EdgeEntry entryCurrent, EdgeEntry entryOther)
-    {
         boolean reverse = isReverse();
         // update μ
         double newWeight = entryCurrent.weight + entryOther.weight;
         if (traversalMode.isEdgeBased())
         {
+            if (entryOther.edge != entryCurrent.edge)
+                throw new IllegalStateException("cannot happen for edge based execution of " + getName());
+
             if (entryOther.adjNode != entryCurrent.adjNode)
             {
                 // prevents the path to contain the edge at the meeting point twice and subtract the weight (excluding turn weight => no previous edge)
@@ -250,13 +263,14 @@ public class DijkstraBidirectionRef extends AbstractBidirAlgo
             }else
             {
                 // we detected a u-turn at meeting point, skip if not supported
-                if (!acceptUTurnByEE(entryCurrent, entryOther))
+                if (!traversalMode.hasUTurnSupport())
                     return;
             }
         }
 
         if (newWeight < bestPath.getWeight())
         {
+            System.out.println("UPDATE BEST:"  + entryCurrent.adjNode + " " + graph.getNodeAccess().getLat(entryCurrent.adjNode) + " " + graph.getNodeAccess().getLon(entryCurrent.adjNode));
             bestPath.setSwitchToFrom(reverse);
             bestPath.setEdgeEntry(entryCurrent);
             bestPath.setWeight(newWeight);

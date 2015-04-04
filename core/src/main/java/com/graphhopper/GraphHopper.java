@@ -985,6 +985,13 @@ public class GraphHopper implements GraphHopperAPI
             if (path.getMillis() < 0)
                 throw new RuntimeException("Time was negative. Please report as bug and include:" + request);
 
+            for(int i : path.calcNodes().toArray())
+            {
+                int level = i >= graph.getNodes() ? -1 : ((LevelGraph)graph).getLevel(i);
+                NodeAccess nodes = queryGraph.getNodeAccess();
+                System.out.println("node:" +i + " level:" + level + " " + nodes.getLat(i) + "," + nodes.getLon(i));
+            }
+
             paths.add(path);
             debug += ", " + algo.getName() + "-routing:" + sw.stop().getSeconds() + "s, " + path.getDebugInfo();
 

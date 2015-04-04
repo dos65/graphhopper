@@ -77,7 +77,7 @@ public class PathBidirRef extends Path
         }
 
         EdgeEntry currEdge = edgeEntry;
-        while (EdgeIterator.Edge.isValid(currEdge.edge))
+        while (EdgeIterator.Edge.isValid(currEdge.edge) && currEdge.parent != null)
         {
             processEdge(currEdge.edge, currEdge.adjNode);
             currEdge = currEdge.parent;
@@ -86,7 +86,7 @@ public class PathBidirRef extends Path
         reverseOrder();
         currEdge = edgeTo;
         int tmpEdge = currEdge.edge;
-        while (EdgeIterator.Edge.isValid(tmpEdge))
+        while (EdgeIterator.Edge.isValid(tmpEdge) && currEdge.parent != null)
         {
             currEdge = currEdge.parent;
             processEdge(tmpEdge, currEdge.adjNode);

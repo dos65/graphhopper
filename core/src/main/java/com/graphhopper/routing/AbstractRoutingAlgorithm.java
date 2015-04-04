@@ -72,15 +72,10 @@ public abstract class AbstractRoutingAlgorithm implements RoutingAlgorithm
 
     protected boolean accept( EdgeIterator iter, int prevOrNextEdgeId )
     {
-        return checkUTurn(iter, prevOrNextEdgeId) &&
-                ( additionalEdgeFilter == null || additionalEdgeFilter.accept(iter));
-    }
+        if (!traversalMode.hasUTurnSupport() && iter.getEdge() == prevOrNextEdgeId)
+            return false;
 
-    protected boolean checkUTurn( EdgeIterator iter, int prevOrNextEdgeId )
-    {
-        if(traversalMode.hasUTurnSupport())
-            return true;
-        return iter.getEdge() != prevOrNextEdgeId;
+        return additionalEdgeFilter == null || additionalEdgeFilter.accept(iter);
     }
 
     protected void updateBestPath( EdgeIteratorState edgeState, EdgeEntry bestEdgeEntry, int traversalId )

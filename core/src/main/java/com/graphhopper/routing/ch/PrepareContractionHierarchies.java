@@ -104,6 +104,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         originalEdges.create(1000);
 
         initWeighting(weighting);
+        System.out.println("prepSuper:" + prepareSuperWeighting);
+        System.out.println("prepW:" + prepareWeighting);
     }
 
     private void initWeighting(Weighting weighting)
@@ -206,6 +208,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
     private Weighting createTurnWeighting(Graph graph, Weighting weighting, TurnCostExtension turnCostExt)
     {
+        System.out.println("CREATE TURN WEIGHTING");
+
         PrepareTurnCostExtension prepareExtension = new PrepareTurnCostExtension(turnCostExt);
         return new TurnWeighting(weighting, prepareFlagEncoder, prepareExtension);
     }
@@ -826,6 +830,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             weighting = createTurnWeighting(graph, prepareSuperWeighting, new PrepareTurnCostExtension(extension));
         }
 
+        System.out.println("CREATE ALGO:" + traversalMode + " " + weighting);
+
         AbstractBidirAlgo algo;
         if (AlgorithmOptions.ASTAR_BI.equals(opts.getAlgorithm()))
         {
@@ -878,11 +884,6 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             algo = astarBi;
         } else if (AlgorithmOptions.DIJKSTRA_BI.equals(opts.getAlgorithm()))
         {
-            /*if(traversalMode.isEdgeBased())
-            {
-                algo = new DijkstraBidirectionRefEdgeSupport(graph, prepareFlagEncoder, weighting, traversalMode);
-            } else
-            {*/
                 algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, weighting, traversalMode)
                 {
                     @Override
@@ -890,6 +891,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                     {
                         // algorithm with CH does not need that much memory pre allocated
                         super.initCollections(Math.min(initialCollectionSize, nodes));
+                        setWeightLimit(3000);
                     }
 
                     @Override
@@ -925,33 +927,49 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                     @Override
                     public String toString()
                     {
-                        return getName() + "|" + prepareWeighting;
+                        return getName() + "|" + weighting;
                     }
+
 
                     @Override
                     protected boolean accept(EdgeIterator iter, int prevOrNextEdgeId)
                     {
-                        if(!traversalMode.isEdgeBased())
+                        if (!traversalMode.isEdgeBased())
                             return super.accept(iter, prevOrNextEdgeId) && levelFilter.accept(iter);
 
-                        return acceptAndCheck(iter, prevOrNextEdgeId);
+                        boolean globalAccept = super.accept(iter, prevOrNextEdgeId);
+                        if (!globalAccept)
+                            return false;
+
+                        boolean levelAccept = levelFilter.accept(iter);
+                        if(levelAccept)
+                            return true;
+
+                        if(iter.getBaseNode() == 22724)
+                        {
+                            System.out.println(isReverse() + " " + iter.getAdjNode() + " " + iter.getEdge());
+                        }
+
+                        int traversalId = traversalMode.createTraversalId(iter, isReverse());
+                        boolean hasOther =  bestWeightMapOther.get(traversalId) != null;
+                        return hasOther;
                     }
 
-                    @Override
+/*                    @Override
                     public void initFrom(int from, double dist)
                     {
                         super.initFrom(from, dist);
-                        if(!traversalMode.isEdgeBased())
+                        if (!traversalMode.isEdgeBased())
                             return;
 
                         EdgeIterator iter = inEdgeExplorer.setBaseNode(from);
-                        while(iter.next())
+                        while (iter.next())
                         {
-                            if(!super.accept(iter, EdgeIterator.NO_EDGE))
+                            if (!super.accept(iter, EdgeIterator.NO_EDGE))
                                 continue;
 
                             int traversalId = traversalMode.createTraversalId(iter, true);
-                            bestWeightMapFrom.put(traversalId, createEdgeEntry(from, 0));
+                            bestWeightMapFrom.put(traversalId, new EdgeEntry(iter.getEdge(), from, 0));
                         }
 
                     }
@@ -960,60 +978,28 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                     public void initTo(int to, double dist)
                     {
                         super.initTo(to, dist);
-                        if(!traversalMode.isEdgeBased())
+                        if (!traversalMode.isEdgeBased())
                             return;
 
                         EdgeIterator iter = outEdgeExplorer.setBaseNode(to);
-                        while(iter.next())
+                        while (iter.next())
                         {
-                            if(!super.accept(iter, EdgeIterator.NO_EDGE))
+                            if (!super.accept(iter, EdgeIterator.NO_EDGE))
                                 continue;
 
                             int traversalId = traversalMode.createTraversalId(iter, false);
-                            bestWeightMapTo.put(traversalId, createEdgeEntry(to, 0));
+                            bestWeightMapTo.put(traversalId, new EdgeEntry(iter.getEdge(), to, 0));
                         }
-                    }
-
-                    private boolean acceptAndCheck(EdgeIterator iter, int prevOrNextEdgeId)
-                    {
-                        boolean globalAccept = super.accept(iter, prevOrNextEdgeId);
-                        if(!globalAccept)
-                            return globalAccept;
-
-                        boolean levelAccept = levelFilter.accept(iter);
-                        int traversalId = traversalMode.createTraversalId(iter, isReverse());
-                        if(!levelAccept)
-                        {
-                            EdgeEntry entryCurrent = isReverse()? currTo : currFrom;
-                            EdgeEntry entryOther = bestWeightMapOther.get(traversalId);
-
-                            if(entryOther != null)
-                            {
-                                double weight = weighting.calcWeight(iter, isReverse(), entryCurrent.edge);
-                                if(!Double.isInfinite(weight))
-                                    updateBestPathByOther(iter, entryCurrent, entryOther);
-                            }
-                        }
-                        return levelAccept && globalAccept;
-                    }
-
-                    @Override
-                    protected boolean checkUTurn(EdgeIterator iter, int prevOrNextEdgeId)
-                    {
-                        if(traversalMode.hasUTurnSupport())
-                            return true;
-
-                        return checkUTurnByOrigEdge(iter.getEdge(), prevOrNextEdgeId, iter.getBaseNode());
-                    }
+                    }*/
 
                     @Override
                     protected boolean acceptUTurnByEE(EdgeEntry entryFrom, EdgeEntry entryOther)
                     {
-                        if(traversalMode.hasUTurnSupport())
+                        if (traversalMode.hasUTurnSupport())
                             return true;
 
                         //TODO
-                        if(entryFrom.adjNode != entryOther.adjNode)
+                        if (entryFrom.adjNode != entryOther.adjNode)
                             throw new IllegalArgumentException();
 
                         return checkUTurnByOrigEdge(entryFrom.edge, entryOther.edge, entryFrom.adjNode);
@@ -1021,7 +1007,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
                     private boolean checkUTurnByOrigEdge(int edge1, int edge2, int viaNode)
                     {
-                        if(edge1 == EdgeIterator.NO_EDGE || edge2 == EdgeIterator.NO_EDGE)
+                        if (edge1 == EdgeIterator.NO_EDGE || edge2 == EdgeIterator.NO_EDGE)
                             return true;
 
                         EdgeSkipIterState state1 = (EdgeSkipIterState) graph.getEdgeProps(edge1, viaNode);
@@ -1033,12 +1019,11 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                         return origEdge1 != origEdge2;
                     }
                 };
-            //}
         } else
         {
             throw new UnsupportedOperationException("Algorithm " + opts.getAlgorithm() + " not supported for Contraction Hierarchies");
         }
-
+        System.out.println("algo:" + algo);
         //algo.setEdgeFilter(levelFilter);
         return algo;
     }
