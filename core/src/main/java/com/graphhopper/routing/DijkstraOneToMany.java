@@ -146,7 +146,7 @@ public class DijkstraOneToMany extends AbstractRoutingAlgorithm
 
         visitedNodes.clear();
         if (finished())
-            return container.getNode(currId);
+            return currId;
 
         while (true)
         {
