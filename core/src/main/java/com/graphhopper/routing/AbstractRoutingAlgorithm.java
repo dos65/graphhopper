@@ -118,6 +118,11 @@ public abstract class AbstractRoutingAlgorithm implements RoutingAlgorithm
         return new Path(graph, flagEncoder);
     }
 
+    protected EdgeFilter getAdditionalEdgeFilter()
+    {
+        return additionalEdgeFilter;
+    }
+
     @Override
     public String getName()
     {

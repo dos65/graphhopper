@@ -28,6 +28,10 @@ import com.graphhopper.routing.util.*;
 import com.graphhopper.storage.*;
 import com.graphhopper.util.*;
 import java.util.*;
+
+import gnu.trove.procedure.TIntProcedure;
+import gnu.trove.set.TIntSet;
+import gnu.trove.set.hash.TIntHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +50,8 @@ import org.slf4j.LoggerFactory;
 public class PrepareContractionHierarchies extends AbstractAlgoPreparation implements RoutingAlgorithmFactory
 {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    private final PreparationWeighting prepareWeighting;
+    private final PreparationWeighting prepareSuperWeighting;
+    private Weighting prepareWeighting;
     private final FlagEncoder prepareFlagEncoder;
     private final TraversalMode traversalMode;
     private EdgeSkipExplorer vehicleInExplorer;
@@ -79,6 +84,8 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     private double nodesContractedPercentage = 100;
     private double logMessagesPercentage = 20;
 
+    private TIntSet leadToInfinityNodes = new TIntHashSet();
+
     public PrepareContractionHierarchies( Directory dir, LevelGraph g, FlagEncoder encoder, Weighting weighting, TraversalMode traversalMode )
     {
         this.prepareGraph = g;
@@ -91,9 +98,27 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         if ((scFwdDir & PrepareEncoder.getScFwdDir()) == 0)
             throw new IllegalArgumentException("Enabling the speed-up mode is currently only supported for the first vehicle.");
 
-        prepareWeighting = new PreparationWeighting(weighting);
+        prepareSuperWeighting = new PreparationWeighting(weighting);
         originalEdges = dir.find("original_edges");
         originalEdges.create(1000);
+
+        initWeighting();
+    }
+
+    private void initWeighting()
+    {
+        if(!prepareFlagEncoder.supports(TurnWeighting.class))
+        {
+            prepareWeighting = prepareSuperWeighting;
+            return;
+        }
+
+        GraphExtension ext = prepareGraph.getExtension();
+        if (ext == null || !(ext instanceof TurnCostExtension))
+            throw new IllegalStateException("Encoder support TurnCostsExtension but graph don't have that");
+
+        TurnCostExtension prepareTurnCostsExt = new PrepareTurnCostExtension((TurnCostExtension) ext);
+        prepareWeighting = new TurnWeighting(prepareSuperWeighting, prepareFlagEncoder, prepareTurnCostsExt);
     }
 
     /**
@@ -184,7 +209,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         if (prepareFlagEncoder == null)
             throw new IllegalStateException("No vehicle encoder set.");
 
-        if (prepareWeighting == null)
+        if (prepareSuperWeighting == null)
             throw new IllegalStateException("No weight calculation set.");
 
         allSW.start();
@@ -360,6 +385,16 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                 levelGraphCast.disconnect(vehicleAllTmpExplorer, iter);
             }
         }
+
+        leadToInfinityNodes.forEach(new TIntProcedure()
+        {
+            @Override
+            public boolean execute(int node)
+            {
+                prepareGraph.setLevel(node, LevelGraph.LEAD_TO_INFINITY);
+                return true;
+            }
+        });
 
         // Preparation works only once so we can release temporary data.
         // The preparation object itself has to be intact to create the algorithm.
@@ -562,7 +597,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                 continue;
 
             double v_u_dist = incomingEdges.getDistance();
-            double v_u_weight = prepareWeighting.calcWeight(incomingEdges, true, EdgeIterator.NO_EDGE);
+            double v_u_weight = prepareWeighting.calcWeight(incomingEdges, true, incomingEdges.getEdge());
             int skippedEdge1 = incomingEdges.getEdge();
             int incomingEdgeOrigCount = getOrigEdgeCount(skippedEdge1);
             // collect outgoing nodes (goal-nodes) only once
@@ -587,7 +622,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                             + ", dist:" + outgoingEdges.getDistance() + ", speed:" + prepareFlagEncoder.getSpeed(outgoingEdges.getFlags()));
 
                 if (Double.isInfinite(existingDirectWeight))
+                {
+                    leadToInfinityNodes.add(u_fromNode);
                     continue;
+                }
 
                 double existingDistSum = v_u_dist + outgoingEdges.getDistance();
                 prepareAlgo.setWeightLimit(existingDirectWeight);
@@ -773,9 +811,16 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
     public RoutingAlgorithm createAlgo( Graph graph, AlgorithmOptions opts )
     {
         AbstractBidirAlgo algo;
+        Weighting weighting = prepareSuperWeighting;
+        if(opts.getWeighting() instanceof TurnWeighting)
+        {
+            TurnCostExtension ext = ((TurnWeighting) opts.getWeighting()).getExtension();
+            weighting = new TurnWeighting(prepareSuperWeighting, prepareFlagEncoder, new PrepareTurnCostExtension(ext));
+        }
+
         if (AlgorithmOptions.ASTAR_BI.equals(opts.getAlgorithm()))
         {
-            AStarBidirection astarBi = new AStarBidirection(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
+            AStarBidirection astarBi = new AStarBidirection(graph, prepareFlagEncoder, weighting, traversalMode)
             {
                 @Override
                 protected void initCollections( int nodes )
@@ -818,7 +863,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
 
                 public String toString()
                 {
-                    return getName() + "|" + prepareWeighting;
+                    return getName() + "|" + prepareSuperWeighting;
                 }
             };
             algo = astarBi;
@@ -826,10 +871,10 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
         {
             if(traversalMode.isEdgeBased())
             {
-                algo = new DijkstraBidirectionRefEdgeSupport(graph, prepareFlagEncoder, prepareWeighting, traversalMode);
+                algo = new DijkstraBidirCHEdge(graph, prepareGraph, prepareFlagEncoder, weighting, traversalMode);
             } else
             {
-                algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, prepareWeighting, traversalMode)
+                algo = new DijkstraBidirectionRef(graph, prepareFlagEncoder, weighting, traversalMode)
                 {
                     @Override
                     protected void initCollections(int nodes)
@@ -871,7 +916,7 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
                     @Override
                     public String toString()
                     {
-                        return getName() + "|" + prepareWeighting;
+                        return getName() + "|" + weighting;
                     }
                 };
             }
@@ -962,6 +1007,32 @@ public class PrepareContractionHierarchies extends AbstractAlgoPreparation imple
             return str + to + ", weight:" + weight + " (" + skippedEdge1 + "," + skippedEdge2 + ")";
         }
     }
+
+    class PrepareTurnCostExtension extends TurnCostExtension
+    {
+        private final TurnCostExtension mainExtension;
+
+        PrepareTurnCostExtension( TurnCostExtension mainExtension)
+        {
+            this.mainExtension = mainExtension;
+        }
+
+        @Override
+        public long getTurnCostFlags(int edgeFrom, int nodeVia, int edgeTo)
+        {
+            int origEdgeFrom = prepareGraph.getOrigEdge(edgeFrom, nodeVia);
+            int origEdgeTo = prepareGraph.getOrigEdge(edgeTo, nodeVia);
+
+            if(origEdgeFrom != EdgeIterator.NO_EDGE)
+                edgeFrom = origEdgeFrom;
+
+            if(origEdgeTo != EdgeIterator.NO_EDGE)
+                edgeTo = origEdgeTo;
+
+            return mainExtension.getTurnCostFlags(edgeFrom, nodeVia, edgeTo);
+        }
+    }
+
 
     @Override
     public String toString()

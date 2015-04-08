@@ -101,4 +101,9 @@ public class TurnWeighting implements Weighting
     {
         return "TURN|" + superWeighting.toString();
     }
+
+    public TurnCostExtension getExtension()
+    {
+       return turnCostExt;
+    }
 }

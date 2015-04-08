@@ -50,6 +50,12 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
         baseGraph = new BaseGraph(this);
     }
 
+    public LevelGraphStorage(GHDirectory dir, EncodingManager encodingManager, boolean enable3D, GraphExtension extenstion)
+    {
+        super(dir, encodingManager, enable3D, extenstion);
+        baseGraph = new BaseGraph(this);
+    }
+
     @Override
     public boolean isShortcut( int edgeId )
     {
@@ -444,5 +450,31 @@ public class LevelGraphStorage extends GraphHopperStorage implements LevelGraph
     public Graph getBaseGraph()
     {
         return baseGraph;
+    }
+
+    @Override
+    public int getOrigEdge(int edge, int node)
+    {
+        if(edge == EdgeIterator.NO_EDGE || edge >= edgeCount)
+            return edge;
+
+        EdgeSkipIterState edgeState = getEdgeProps(edge, node);
+        if(edgeState == null)
+            throw new IllegalStateException();
+        return getOrigEdge(edgeState, node);
+    }
+
+    public int getOrigEdge(EdgeSkipIterState edgeState, int node)
+    {
+        if(!edgeState.isShortcut())
+            return edgeState.getEdge();
+
+        EdgeSkipIterState nextState = getEdgeProps(edgeState.getSkippedEdge1(), node);
+        if(nextState == null)
+            nextState = getEdgeProps(edgeState.getSkippedEdge2(), node);
+        if(nextState == null)
+            throw new IllegalStateException("Can not find orig edge edge:" + edgeState.getEdge() + " node:" + node);
+
+        return getOrigEdge(nextState, node);
     }
 }

@@ -30,6 +30,7 @@ import com.graphhopper.util.EdgeSkipIterState;
  */
 public interface LevelGraph extends Graph
 {
+    public static final int LEAD_TO_INFINITY = -1;
     /**
      * This methods sets the level of the specified node.
      */
@@ -41,6 +42,8 @@ public interface LevelGraph extends Graph
     int getLevel( int nodeId );
 
     boolean isShortcut( int edgeId );
+
+    int getOrigEdge(int edge, int node);
 
     /**
      * This method creates a shortcut between a to b which is nearly identical to creating an edge

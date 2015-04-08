@@ -65,7 +65,7 @@ public class GraphHopper implements GraphHopperAPI
     // for routing
     private double defaultWeightLimit = Double.MAX_VALUE;
     private boolean simplifyResponse = true;
-    private TraversalMode traversalMode = TraversalMode.EDGE_BASED_2DIR;
+    private TraversalMode traversalMode = TraversalMode.NODE_BASED;
     private RoutingAlgorithmFactory algoFactory;
     // for index
     private LocationIndex locationIndex;
@@ -733,11 +733,19 @@ public class GraphHopper implements GraphHopperAPI
 
         GHDirectory dir = new GHDirectory(ghLocation, dataAccessType);
         if (chEnabled)
-            graph = new LevelGraphStorage(dir, encodingManager, hasElevation());
-        else if (encodingManager.needsTurnCostsSupport())
-            graph = new GraphHopperStorage(dir, encodingManager, hasElevation(), new TurnCostExtension());
+        {
+            if(encodingManager.needsTurnCostsSupport())
+                graph = new LevelGraphStorage(dir, encodingManager, hasElevation(), new TurnCostExtension());
+            else
+                graph = new LevelGraphStorage(dir, encodingManager, hasElevation());
+        }
         else
-            graph = new GraphHopperStorage(dir, encodingManager, hasElevation());
+        {
+            if (encodingManager.needsTurnCostsSupport())
+                graph = new GraphHopperStorage(dir, encodingManager, hasElevation(), new TurnCostExtension());
+            else
+                graph = new GraphHopperStorage(dir, encodingManager, hasElevation());
+        }
 
         graph.setSegmentSize(defaultSegmentSize);
 

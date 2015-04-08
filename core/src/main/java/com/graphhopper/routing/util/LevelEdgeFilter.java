@@ -20,7 +20,7 @@ package com.graphhopper.routing.util;
 import com.graphhopper.storage.LevelGraph;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.EdgeSkipIterState;
-import com.graphhopper.util.EdgeSkipIterator;
+import static com.graphhopper.storage.LevelGraph.LEAD_TO_INFINITY;
 
 /**
  * Only certain nodes are accepted and therefor the others are ignored.
@@ -51,6 +51,12 @@ public class LevelEdgeFilter implements EdgeFilter
         if (((EdgeSkipIterState) edgeIterState).isShortcut())
             return true;
 
-        return graph.getLevel(base) <= graph.getLevel(adj);
+        int baseLevel = graph.getLevel(base);
+        int adjLevel = graph.getLevel(adj);
+
+        if(baseLevel == LEAD_TO_INFINITY || adjLevel == LEAD_TO_INFINITY)
+            return true;
+
+        return baseLevel <= adjLevel;
     }
 }
